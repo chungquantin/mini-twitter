@@ -1,0 +1,14 @@
+[package]
+name = "twitter-rdb"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = {version ="1.24.1", features=["full"]}
+postgres = "0.19"
+anyhow = "1.0.68"
+once_cell = "1.17.0"
+thiserror = "1.0.38"
+
