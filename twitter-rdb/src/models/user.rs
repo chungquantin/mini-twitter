@@ -5,6 +5,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct User {
     pub user_id: Identifier,
-    pub name: String,
+    pub username: String,
     pub user_ts: UnixTimestamp,
 }

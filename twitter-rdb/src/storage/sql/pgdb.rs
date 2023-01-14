@@ -1,6 +1,10 @@
 use crate::{
-    errors::DatabaseError, models::Document, sql::GLOBAL_SQL_SCRIPTS,
-    storage::config::StorageConfig, storage::sql::RDBAdapter, storage::DatabaseVariant,
+    constants::{get_sql_script, GLOBAL_SQL_SCRIPTS},
+    errors::DatabaseError,
+    models::{Document, SQLEvent},
+    storage::config::StorageConfig,
+    storage::sql::RDBAdapter,
+    storage::DatabaseVariant,
 };
 use postgres::{Client, NoTls};
 
@@ -28,10 +32,16 @@ impl RDBAdapter for PostgresAdapter {
 
     fn create(&mut self, doc: Document, args: &[Self::ArgumentType]) -> Result<(), DatabaseError> {
         let client: &mut Client = self.client()?;
-        let doc_name: String = String::from(doc.clone());
-        let script: &String = GLOBAL_SQL_SCRIPTS.get(doc_name.as_str()).unwrap();
+        let script = get_sql_script(doc, SQLEvent::Insert);
+        client.execute(&script, args).unwrap();
 
-        client.execute(script, args).unwrap();
+        Ok(())
+    }
+
+    fn get_all(&mut self, doc: Document) -> Result<(), DatabaseError> {
+        let client: &mut Client = self.client()?;
+        let script = get_sql_script(doc, SQLEvent::Select);
+        client.execute(&script, &[]).unwrap();
 
         Ok(())
     }
