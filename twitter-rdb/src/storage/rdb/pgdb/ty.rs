@@ -1,8 +1,8 @@
-extern crate postgres;
+extern crate tokio_postgres;
 
 use std::cell::Cell;
 
-use postgres::{Client, Transaction};
+use tokio_postgres::{Client, Transaction};
 
 use crate::models::DBTransaction;
 

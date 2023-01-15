@@ -5,12 +5,12 @@ use crate::models::ImplDatabase;
 use super::PostgresAdapter;
 use super::Transaction;
 
-pub struct DatabaseRef<'a> {
-    pub db: &'a mut Database,
+pub struct DatabaseRef {
+    pub db: Database,
 }
 
-impl<'a> DatabaseRef<'a> {
-    pub fn new(db: &'a mut Database) -> Self {
+impl DatabaseRef {
+    pub fn new(db: Database) -> Self {
         DatabaseRef { db }
     }
 }
@@ -30,11 +30,11 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn new(name: DatabaseVariant, connection_str: &str) -> Database {
+    pub async fn connect(name: DatabaseVariant, connection_str: &str) -> Database {
         match connection_str {
             #[cfg(feature = "rdb_postgres")]
             s if matches!(name, DatabaseVariant::Postgres) => {
-                let db = PostgresAdapter::new(s).unwrap();
+                let db = PostgresAdapter::connect(s).await.unwrap();
 
                 Database {
                     inner: Inner::Postgres(db),
@@ -44,11 +44,7 @@ impl Database {
         }
     }
 
-    pub fn borrow(&mut self) -> DatabaseRef {
-        DatabaseRef::new(self)
-    }
-
-    pub fn connection(&self) -> &str {
+    pub fn _connection(&self) -> &str {
         macro_rules! impl_transaction_method {
 			($($x: ident feat $f: expr),*) => {
 				match &self.inner {
@@ -66,14 +62,14 @@ impl Database {
         )
     }
 
-    pub fn transaction(&mut self, write: bool) -> Result<Transaction, DatabaseError> {
+    pub async fn transaction(&mut self, write: bool) -> Result<Transaction, DatabaseError> {
         macro_rules! impl_transaction_method {
 			($($x: ident feat $f: expr),*) => {
 				match &mut self.inner {
 					$(
 						#[cfg(feature = $f)]
 						Inner::$x(v) => {
-							let tx = v.transaction(write)?;
+							let tx = v.transaction(write).await?;
 							Ok(Transaction {
 								inner: super::tx::Inner::$x(tx),
 							})

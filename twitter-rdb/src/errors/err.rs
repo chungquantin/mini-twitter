@@ -1,5 +1,5 @@
-use postgres::Error as PostgresError;
 use thiserror::Error;
+use tokio_postgres::Error as PostgresError;
 
 #[derive(Error, Debug)]
 pub enum DatabaseError {

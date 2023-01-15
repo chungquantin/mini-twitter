@@ -1,12 +1,36 @@
+use crate::storage::{Database, DatabaseRef, Transaction};
 use crate::{
     errors::DatabaseError,
     misc::Identifier,
     models::{Document, SimpleTransaction, Tweet},
 };
+use std::cell::Cell;
 
-impl_repository!(TwitterRepository);
+pub struct TwitterRepository {
+    pub ds_ref: Cell<DatabaseRef>,
+}
 
-impl<'a> TwitterRepository<'a> {
+impl TwitterRepository {
+    pub fn new(ds_ref: DatabaseRef) -> Self {
+        TwitterRepository {
+            ds_ref: Cell::new(ds_ref),
+        }
+    }
+
+    fn db(&mut self) -> &mut Database {
+        &mut self.ds_ref.get_mut().db
+    }
+
+    pub async fn tx(&mut self) -> Transaction {
+        self.db().transaction(false).await.unwrap()
+    }
+
+    pub async fn mut_tx(&mut self) -> Transaction {
+        self.db().transaction(true).await.unwrap()
+    }
+}
+
+impl TwitterRepository {
     pub async fn create_tweet(
         &mut self,
         tx: &mut Transaction,

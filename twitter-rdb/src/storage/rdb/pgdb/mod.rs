@@ -3,14 +3,16 @@ mod ty;
 
 use std::cell::Cell;
 
+use async_trait::async_trait;
 pub use tx::*;
 pub use ty::*;
 
 use crate::{
+    constants::get_sql_script,
     errors::DatabaseError,
-    models::{DBTransaction, DatabaseAdapter, DatabaseType, ImplDatabase},
+    models::{DBTransaction, DatabaseAdapter, DatabaseType, Document, ImplDatabase, SQLEvent},
 };
-use postgres::{Client, NoTls};
+use tokio_postgres::{Client, NoTls};
 
 pub struct PostgresAdapter(DatabaseAdapter<DBType>);
 
@@ -22,8 +24,21 @@ impl PostgresAdapter {
         return Ok(c.as_mut().get_mut());
     }
 
-    pub fn new(connection_str: &str) -> Result<PostgresAdapter, DatabaseError> {
-        let client = Client::connect(connection_str, NoTls)?;
+    pub async fn connect(connection_str: &str) -> Result<PostgresAdapter, DatabaseError> {
+        let (client, connection) = tokio_postgres::connect(connection_str, NoTls).await?;
+
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                eprintln!("connection error: {}", e);
+            }
+        });
+
+        client
+            .batch_execute(&get_sql_script(Document::GENERAL, SQLEvent::CreateTable))
+            .await?;
+
+        println!("POSTGRES: Connect and successfully initialize database");
+
         Ok(PostgresAdapter(DatabaseAdapter::<DBType>::new(
             connection_str.to_string(),
             Box::new(Cell::new(client)),
@@ -32,25 +47,17 @@ impl PostgresAdapter {
     }
 }
 
+#[async_trait(?Send)]
 impl ImplDatabase for PostgresAdapter {
     type Transaction = PostgresTransaction;
-
-    fn default() -> Self {
-        let connection_str = "postgresql://chungquantin:password@localhost:5433/postgres";
-        PostgresAdapter::new(connection_str).unwrap()
-    }
-
-    fn spawn(&self) -> Self {
-        PostgresAdapter::default()
-    }
 
     fn connection(&self) -> &str {
         &self.0.connection_str
     }
 
-    fn transaction(&mut self, w: bool) -> Result<PostgresTransaction, DatabaseError> {
+    async fn transaction(&mut self, w: bool) -> Result<PostgresTransaction, DatabaseError> {
         let db = self.client()?;
-        let tx = db.transaction().unwrap();
+        let tx = db.transaction().await.unwrap();
 
         let tx = unsafe { extend_tx_lifetime(tx) };
 
@@ -58,6 +65,8 @@ impl ImplDatabase for PostgresAdapter {
     }
 }
 
-unsafe fn extend_tx_lifetime(tx: postgres::Transaction<'_>) -> postgres::Transaction<'static> {
-    std::mem::transmute::<postgres::Transaction<'_>, postgres::Transaction<'static>>(tx)
+unsafe fn extend_tx_lifetime(
+    tx: tokio_postgres::Transaction<'_>,
+) -> tokio_postgres::Transaction<'static> {
+    std::mem::transmute::<tokio_postgres::Transaction<'_>, tokio_postgres::Transaction<'static>>(tx)
 }

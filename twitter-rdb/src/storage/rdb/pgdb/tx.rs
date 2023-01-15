@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use postgres::types::ToSql;
+use tokio_postgres::types::ToSql;
 
 use crate::{
     constants::get_sql_script,
@@ -26,7 +26,7 @@ impl SimpleTransaction for DBTransaction<TxType> {
 
         let mut tx = self.tx.lock().await;
         match tx.take() {
-            Some(tx) => tx.rollback()?,
+            Some(tx) => tx.rollback().await?,
             None => unreachable!(),
         }
 
@@ -48,7 +48,7 @@ impl SimpleTransaction for DBTransaction<TxType> {
 
         let mut tx = self.tx.lock().await;
         match tx.take() {
-            Some(tx) => tx.commit()?,
+            Some(tx) => tx.commit().await?,
             None => unreachable!(),
         }
 
@@ -76,11 +76,12 @@ impl SimpleTransaction for DBTransaction<TxType> {
         let mut casted_arguments: Vec<&(dyn ToSql + Sync)> = vec![];
 
         // for arg in args.into().iter() {
-        //     let argument: String = arg.to_string();
-        //     casted_arguments.push(&argument.clone());
+        //     let argument: &(dyn ToSql + Sync) = &arg.to_string();
+        //     casted_arguments.push(argument);
         // }
 
-        tx.execute(&get_sql_script(key, SQLEvent::Insert), &casted_arguments)?;
+        tx.execute(&get_sql_script(key, SQLEvent::Insert), &casted_arguments)
+            .await?;
 
         Ok(())
     }

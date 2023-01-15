@@ -1,3 +1,5 @@
+use async_trait::async_trait;
+
 use crate::errors::DatabaseError;
 
 use super::SimpleTransaction;
@@ -27,25 +29,12 @@ impl<T> DatabaseAdapter<T> {
     }
 }
 
+#[async_trait(?Send)]
 pub trait ImplDatabase {
     type Transaction: SimpleTransaction;
     // # Create new database transaction
     // Set `rw` default to false means readable but not readable
-    fn transaction(&mut self, rw: bool) -> Result<Self::Transaction, DatabaseError>;
-
-    fn default() -> Self
-    where
-        Self: Sized,
-    {
-        todo!();
-    }
-
-    fn spawn(&self) -> Self
-    where
-        Self: Sized,
-    {
-        todo!()
-    }
+    async fn transaction(&mut self, rw: bool) -> Result<Self::Transaction, DatabaseError>;
 
     fn connection(&self) -> &str;
 }

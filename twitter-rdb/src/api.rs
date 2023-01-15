@@ -6,33 +6,27 @@ use crate::{
     storage::DatabaseRef,
 };
 
-pub struct TwitterApi<'a> {
-    repo: TwitterRepository<'a>,
+pub struct TwitterApi {
+    repo: TwitterRepository,
 }
 
-impl<'a> TwitterApi<'a> {
-    pub fn new(db_ref: DatabaseRef<'a>) -> TwitterApi<'a> {
+impl TwitterApi {
+    pub fn new(db_ref: DatabaseRef) -> TwitterApi {
         TwitterApi {
             repo: TwitterRepository::new(db_ref),
         }
     }
 
     pub async fn post_tweet(&mut self, t: Tweet) -> Result<(), DatabaseError> {
-        // action initialization
-        let tx = &mut self.repo.mut_tx();
-        // action dispatch
+        let tx = &mut self.repo.mut_tx().await;
         self.repo.create_tweet(tx, t).await?;
-        // action finished
         tx.commit().await?;
         Ok(())
     }
 
     pub async fn get_timeline(&mut self, user_id: Identifier) -> Result<Vec<Tweet>, DatabaseError> {
-        // action initialization
-        let tx = &mut self.repo.mut_tx();
-        // action dispatch
+        let tx = &mut self.repo.mut_tx().await;
         self.repo.get_user_tweets(tx, user_id).await?;
-        // action finished
         tx.commit().await?;
 
         Ok(vec![])

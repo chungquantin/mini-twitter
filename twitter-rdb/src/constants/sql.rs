@@ -1,15 +1,17 @@
 use crate::models::{Document, SQLEvent};
-use crate::utils::read_file_string;
+use crate::utils::{get_absolute_path, read_file_string};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 
 fn load_script(script: &'static str) -> String {
-    let query = read_file_string(&format!("../queries/{}.sql", script).to_string()).unwrap();
+    let non_absolute_path = &format!("./src/queries/{}.sql", script).to_string();
+    let abs_path = &get_absolute_path(non_absolute_path);
+    let query = read_file_string(abs_path).unwrap();
     query
 }
 
 pub fn scriptify(doc: Document, event: SQLEvent) -> String {
-    let script_name = format!("[{}][{}]", doc, event);
+    let script_name = format!("{}:{}", doc, event);
     script_name
 }
 
@@ -17,6 +19,7 @@ pub fn get_sql_script(doc: Document, method: SQLEvent) -> String {
     let doc_name: String = String::from(doc.clone());
     let method_name: String = String::from(method.clone());
     let script_name = format!("{}:{}", doc_name, method_name);
+
     let script: &String = GLOBAL_SQL_SCRIPTS.get(&script_name).unwrap();
 
     script.clone()
