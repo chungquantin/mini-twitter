@@ -4,7 +4,7 @@ use std::fmt::{Display, Formatter, Result as FormatResult};
 pub enum SQLEvent {
     CreateTable,
     Insert,
-    Select,
+    SelectWhere,
     SelectOne,
 }
 
@@ -18,7 +18,7 @@ impl From<SQLEvent> for String {
     fn from(event: SQLEvent) -> String {
         let event_str: String = match event {
             SQLEvent::Insert => "INSERT".to_string(),
-            SQLEvent::Select => "SELECT".to_string(),
+            SQLEvent::SelectWhere => "SELECT_WHERE".to_string(),
             SQLEvent::SelectOne => "SELECT_ONE".to_string(),
             SQLEvent::CreateTable => "CREATE_TABLE".to_string(),
         };

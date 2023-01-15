@@ -2,16 +2,16 @@ use std::fmt::{Display, Formatter, Result as FormatResult};
 
 #[derive(Clone)]
 pub enum Document {
-    User,
-    Tweet,
+    GENERAL,
+    Tweets,
     Follows,
 }
 
 impl From<Document> for String {
     fn from(doc: Document) -> String {
         match doc {
-            Document::User => "USER".to_string(),
-            Document::Tweet => "Twitter".to_string(),
+            Document::GENERAL => "GENERAL".to_string(),
+            Document::Tweets => "Tweets".to_string(),
             Document::Follows => "Follows".to_string(),
         }
     }

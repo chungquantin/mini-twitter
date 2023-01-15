@@ -1,7 +1,3 @@
-mod follows;
-mod tweets;
-mod users;
+mod twitter;
 
-pub use follows::*;
-pub use tweets::*;
-pub use users::*;
+pub use twitter::*;

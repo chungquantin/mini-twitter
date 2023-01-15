@@ -25,16 +25,16 @@ pub fn get_sql_script(doc: Document, method: SQLEvent) -> String {
 pub static GLOBAL_SQL_SCRIPTS: Lazy<HashMap<String, String>> = Lazy::new(|| {
     let mut scripts = HashMap::new();
     scripts.insert(
-        scriptify(Document::User, SQLEvent::CreateTable),
-        load_script("create_user_table"),
+        scriptify(Document::GENERAL, SQLEvent::CreateTable),
+        load_script("create_table"),
     );
     scripts.insert(
-        scriptify(Document::User, SQLEvent::Insert),
-        load_script("insert_user"),
+        scriptify(Document::Tweets, SQLEvent::Insert),
+        load_script("insert_tweet"),
     );
     scripts.insert(
-        scriptify(Document::User, SQLEvent::Select),
-        load_script("select_all_user"),
+        scriptify(Document::Tweets, SQLEvent::SelectWhere),
+        load_script("select_user_tweets"),
     );
     scripts
 });

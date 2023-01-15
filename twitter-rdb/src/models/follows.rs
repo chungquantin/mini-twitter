@@ -2,7 +2,7 @@ use crate::misc::Identifier;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
-struct Follows {
+pub struct Follows {
     user_id: Identifier,
     follows_id: Identifier,
 }
