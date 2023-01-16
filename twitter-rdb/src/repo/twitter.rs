@@ -1,4 +1,4 @@
-use crate::models::SuperValue;
+use crate::models::{Follow, SuperValue};
 use crate::storage::{Database, DatabaseRef, Transaction};
 use crate::{
     errors::DatabaseError,
@@ -87,6 +87,7 @@ impl TwitterRepository {
                         None => SuperValue::BigInteger(0),
                     },
                 ],
+                &["user_tweets"],
             )
             .await?;
 
@@ -106,5 +107,53 @@ impl TwitterRepository {
         .await?;
 
         Ok(())
+    }
+
+    pub async fn get_user_followers(
+        &mut self,
+        tx: Transaction,
+        user_id: Identifier,
+    ) -> Result<Vec<Follow>, DatabaseError> {
+        let followers: Vec<Follow> = tx
+            .get_filtered(
+                Document::Follows,
+                vec![SuperValue::Integer(user_id)],
+                &["user_followers"],
+            )
+            .await?;
+
+        Ok(followers)
+    }
+
+    pub async fn get_user_followees(
+        &mut self,
+        tx: Transaction,
+        user_id: Identifier,
+    ) -> Result<Vec<Follow>, DatabaseError> {
+        let followers: Vec<Follow> = tx
+            .get_filtered(
+                Document::Follows,
+                vec![SuperValue::Integer(user_id)],
+                &["user_followees"],
+            )
+            .await?;
+
+        Ok(followers)
+    }
+
+    pub async fn get_random_followee(
+        &mut self,
+        tx: Transaction,
+        user_id: Identifier,
+    ) -> Result<Option<Follow>, DatabaseError> {
+        let followers: Vec<Follow> = tx
+            .get_filtered(
+                Document::Follows,
+                vec![SuperValue::Integer(user_id)],
+                &["user_random_followees"],
+            )
+            .await?;
+
+        Ok(followers.first().cloned())
     }
 }

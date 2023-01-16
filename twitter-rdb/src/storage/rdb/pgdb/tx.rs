@@ -137,7 +137,12 @@ impl SimpleTransaction for DBTransaction<TxType> {
         Ok(())
     }
 
-    async fn get_filtered<K, A, V>(&self, key: K, args: A) -> Result<Vec<V>, DatabaseError>
+    async fn get_filtered<K, A, V>(
+        &self,
+        key: K,
+        args: A,
+        keywords: &[&'static str],
+    ) -> Result<Vec<V>, DatabaseError>
     where
         A: Into<Arg> + Send,
         K: Into<Key> + Send,
@@ -161,7 +166,7 @@ impl SimpleTransaction for DBTransaction<TxType> {
 
         let rows = tx
             .query(
-                &get_sql_script(key.clone(), SQLEvent::SelectWhere),
+                &get_sql_script(key.clone(), SQLEvent::Select(keywords[0])),
                 &pg_params_ref,
             )
             .await?;

@@ -2,7 +2,7 @@ use crate::{
     auth::Auth,
     errors::DatabaseError,
     misc::Identifier,
-    models::{Follows, SimpleTransaction, Tweet},
+    models::{Follow, SimpleTransaction, Tweet},
     repo::TwitterRepository,
     storage::DatabaseRef,
 };
@@ -20,7 +20,7 @@ impl TwitterApi {
         }
     }
 
-    pub async fn load_follows(&mut self, f: Vec<Follows>) -> Result<(), DatabaseError> {
+    pub async fn load_follows(&mut self, f: Vec<Follow>) -> Result<(), DatabaseError> {
         let tx = &mut self.repo.mut_tx().await;
         for follow in f {
             self.repo
@@ -49,20 +49,34 @@ impl TwitterApi {
         Ok(())
     }
 
-    pub async fn get_timeline(&self, user_id: Identifier) -> Result<Vec<Tweet>, DatabaseError> {
-        let followees = self.get_followees(user_id);
+    pub async fn get_timeline(&mut self, user_id: Identifier) -> Result<Vec<Tweet>, DatabaseError> {
+        let tx = self.repo.tx().await;
+        let followee = self.repo.get_random_followee(tx, user_id).await?;
 
-        Ok(vec![])
+        let mut result = vec![];
+        if let Some(f) = followee {
+            result = self.get_tweets(f.to(), Some(10), None).await?;
+        }
+
+        Ok(result)
     }
 
-    // pub async fn get_followers(&mut self, user_id: Identifier) -> Vec<Identifier> {
-    //     let tx = &mut self.repo.tx().await;
-    //     let tweets = self.repo.get_user_tweets(tx, user_id).await?;
-    //     Ok(tweets)
-    // }
+    pub async fn get_followers(
+        &mut self,
+        user_id: Identifier,
+    ) -> Result<Vec<Follow>, DatabaseError> {
+        let tx = self.repo.tx().await;
+        let tweets = self.repo.get_user_followers(tx, user_id).await?;
+        Ok(tweets)
+    }
 
-    pub fn get_followees(&self, user_id: Identifier) -> Vec<Identifier> {
-        vec![]
+    pub async fn get_followees(
+        &mut self,
+        user_id: Identifier,
+    ) -> Result<Vec<Follow>, DatabaseError> {
+        let tx = self.repo.tx().await;
+        let tweets = self.repo.get_user_followees(tx, user_id).await?;
+        Ok(tweets)
     }
 
     pub async fn get_tweets(

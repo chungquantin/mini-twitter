@@ -77,7 +77,11 @@ macro_rules! impl_global_transaction {
 					}
 				}
 
-				async fn get_filtered<K, A, V>(&self, key: K, args: A) -> Result<Vec<V>, DatabaseError>
+				async fn get_filtered<K, A, V>(
+					&self, key: K,
+					args: A,
+					keywords: &[&'static str]
+				) -> Result<Vec<V>, DatabaseError>
 				where
 								A: Into<Arg> + Send,
 								K: Into<Key> + Send,
@@ -89,7 +93,7 @@ macro_rules! impl_global_transaction {
 							Transaction {
 								inner: Inner::$x(ds),
 								..
-							} => ds.get_filtered(key, args).await,
+							} => ds.get_filtered(key, args, keywords).await,
 						)*
 				}
 			}

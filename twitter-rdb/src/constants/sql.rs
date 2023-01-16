@@ -58,7 +58,7 @@ pub static GLOBAL_SQL_SCRIPTS: Lazy<HashMap<String, String>> = Lazy::new(|| {
         load_script("batch_insert_tweets"),
     );
     scripts.insert(
-        scriptify(Document::Tweets, SQLEvent::SelectWhere),
+        scriptify(Document::Tweets, SQLEvent::Select("user_tweets")),
         load_script("select_user_tweets"),
     );
     // Follows script
@@ -67,7 +67,7 @@ pub static GLOBAL_SQL_SCRIPTS: Lazy<HashMap<String, String>> = Lazy::new(|| {
         load_script("insert_follow"),
     );
     scripts.insert(
-        scriptify(Document::Follows, SQLEvent::SelectWhere),
+        scriptify(Document::Follows, SQLEvent::Select("user_followers")),
         load_script("select_user_followers"),
     );
     scripts
