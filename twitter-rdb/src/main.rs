@@ -41,10 +41,15 @@ async fn main() -> Result<(), DatabaseError> {
     let database = Database::connect(DatabaseVariant::Postgres, connection_str).await;
     let database_ref = DatabaseRef::new(database);
     let mut twitter_api = TwitterApi::new(database_ref);
+    let use_sample = false;
 
     let mut t = start_benchmarking("PREPARATION", "Load tweets from CSV file");
     let mut loaded_tweets = vec![];
-    let tweets_records = load_from_csv("./dataset/tweets_sample.csv");
+    let tweets_records = load_from_csv(if use_sample {
+        "./dataset/tweet_sample.csv"
+    } else {
+        "./dataset/tweet.csv"
+    });
     for record in tweets_records {
         let user_id = record.get(0).unwrap();
         let parsed_user_id = user_id.parse::<i32>().unwrap();
@@ -55,7 +60,11 @@ async fn main() -> Result<(), DatabaseError> {
     stop_benchmarking(t);
 
     t = start_benchmarking("PREPARATION", "Load and populate follows from CSV file");
-    let follows_records = load_from_csv("./dataset/follows_sample.csv");
+    let follows_records = load_from_csv(if use_sample {
+        "./dataset/follows_sample.csv"
+    } else {
+        "./dataset/follows.csv"
+    });
     let mut follows = vec![];
     for record in follows_records {
         let user_id = record.get(0).unwrap();

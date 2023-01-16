@@ -21,7 +21,6 @@ impl TwitterApi {
     pub async fn batch_create_follows(&mut self, f: Vec<Follow>) -> Result<(), DatabaseError> {
         let tx = &mut self.repo.mut_tx().await;
         for follow in f {
-            println!("Follow: {:?}", follow);
             self.repo
                 .create_follow(tx, follow.from(), follow.to())
                 .await?;
