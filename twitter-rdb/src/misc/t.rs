@@ -1,7 +1,9 @@
-use crate::models::Document;
+use std::time::SystemTime;
 
-pub type UnixTimestamp = i64;
-pub type Identifier = i64;
+use crate::models::{Document, SuperValue};
+
+pub type UnixTimestamp = SystemTime;
+pub type Identifier = i32;
 pub type Key = Document;
 pub type Val = Vec<String>;
-pub type Arg = Vec<String>;
+pub type Arg = Vec<SuperValue>;

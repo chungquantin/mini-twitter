@@ -1,0 +1,1 @@
+INSERT INTO Follows (from_id, to_id) VALUES ($1, $2)

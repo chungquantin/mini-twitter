@@ -1,6 +1,6 @@
 use std::fmt::{Display, Formatter, Result as FormatResult};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Document {
     GENERAL,
     Tweets,

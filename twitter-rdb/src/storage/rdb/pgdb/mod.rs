@@ -24,18 +24,35 @@ impl PostgresAdapter {
         return Ok(c.as_mut().get_mut());
     }
 
-    pub async fn connect(connection_str: &str) -> Result<PostgresAdapter, DatabaseError> {
+    pub async fn connect(
+        connection_str: &str,
+        auto_reset: bool,
+    ) -> Result<PostgresAdapter, DatabaseError> {
         let (client, connection) = tokio_postgres::connect(connection_str, NoTls).await?;
+        println!("POSTGRES: Connecting and initializing...");
 
+        // Waiting for connection to settle
         tokio::spawn(async move {
             if let Err(e) = connection.await {
                 eprintln!("connection error: {}", e);
             }
         });
 
-        client
-            .batch_execute(&get_sql_script(Document::GENERAL, SQLEvent::CreateTable))
-            .await?;
+        if auto_reset {
+            println!("POSTGRES: Dropping existing tables...");
+            client
+                .batch_execute(&get_sql_script(Document::GENERAL, SQLEvent::Reset))
+                .await?;
+        }
+
+        for table_name in vec!["Tweets", "Follows"].iter() {
+            client
+                .batch_execute(&get_sql_script(
+                    Document::GENERAL,
+                    SQLEvent::CreateTable(table_name.to_string()),
+                ))
+                .await?;
+        }
 
         println!("POSTGRES: Connect and successfully initialize database");
 
@@ -58,10 +75,8 @@ impl ImplDatabase for PostgresAdapter {
     async fn transaction(&mut self, w: bool) -> Result<PostgresTransaction, DatabaseError> {
         let db = self.client()?;
         let tx = db.transaction().await.unwrap();
-
-        let tx = unsafe { extend_tx_lifetime(tx) };
-
-        Ok(DBTransaction::<TxType>::new(tx, w).unwrap())
+        let longer_lifetime_tx = unsafe { extend_tx_lifetime(tx) };
+        Ok(DBTransaction::<TxType>::new(longer_lifetime_tx, w).unwrap())
     }
 }
 

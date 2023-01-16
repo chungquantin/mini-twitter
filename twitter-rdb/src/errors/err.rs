@@ -38,6 +38,9 @@ pub enum DatabaseError {
 
     #[error("unknown data store error")]
     Unknown,
+
+    #[error("Casting type error from {0} to {1}")]
+    TypeCastError(String, String),
 }
 
 impl From<PostgresError> for DatabaseError {

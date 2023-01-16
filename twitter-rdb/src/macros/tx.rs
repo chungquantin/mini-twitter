@@ -1,7 +1,8 @@
 macro_rules! impl_global_transaction {
 		($($x: ident; feat $feat: expr), *) => {
 			use crate::errors::DatabaseError;
-			use crate::misc::{ Key, Val, Arg };
+			use crate::misc::{ Key, Arg };
+			use crate::models::FromSuperValues;
 
 			#[async_trait::async_trait(?Send)]
 			impl crate::models::SimpleTransaction for Transaction {
@@ -44,10 +45,10 @@ macro_rules! impl_global_transaction {
 					}
 				}
 
-				async fn set<K, V>(&mut self, key: K, val: V) -> Result<(), DatabaseError>
+				async fn set<K, A>(&mut self, key: K, val: A) -> Result<(), DatabaseError>
 				where
 					K: Into<Key> + Send,
-					V: Into<Val> + Send
+					A: Into<Arg> + Send
 				{
 					match self {
 						$(
@@ -60,10 +61,27 @@ macro_rules! impl_global_transaction {
 					}
 				}
 
-				async fn get_filtered<K, A>(&self, key: K, args: A) -> Result<Val, DatabaseError>
+				async fn multi_set<K, A>(&mut self, keys: K, args: Vec<A>) -> Result<(), DatabaseError>
+				where
+					K: Into<Key> + Send,
+					A: Into<Arg> + Send
+				{
+					match self {
+						$(
+							#[cfg(feature = $feat)]
+							Transaction {
+								inner: Inner::$x(ds),
+								..
+							} => ds.multi_set(keys, args).await,
+						)*
+					}
+				}
+
+				async fn get_filtered<K, A, V>(&self, key: K, args: A) -> Result<Vec<V>, DatabaseError>
 				where
 								A: Into<Arg> + Send,
 								K: Into<Key> + Send,
+								V: FromSuperValues
 				{
 					match self {
 						$(

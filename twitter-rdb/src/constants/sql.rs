@@ -6,6 +6,7 @@ use std::collections::HashMap;
 fn load_script(script: &'static str) -> String {
     let non_absolute_path = &format!("./src/queries/{}.sql", script).to_string();
     let abs_path = &get_absolute_path(non_absolute_path);
+    println!("path: {:?}", abs_path);
     let query = read_file_string(abs_path).unwrap();
     query
 }
@@ -27,17 +28,47 @@ pub fn get_sql_script(doc: Document, method: SQLEvent) -> String {
 
 pub static GLOBAL_SQL_SCRIPTS: Lazy<HashMap<String, String>> = Lazy::new(|| {
     let mut scripts = HashMap::new();
+    // General scripts
     scripts.insert(
-        scriptify(Document::GENERAL, SQLEvent::CreateTable),
-        load_script("create_table"),
+        scriptify(Document::GENERAL, SQLEvent::Reset),
+        load_script("reset"),
     );
+    scripts.insert(
+        scriptify(
+            Document::GENERAL,
+            SQLEvent::CreateTable("Tweets".to_string()),
+        ),
+        load_script("create_table_tweets"),
+    );
+    scripts.insert(
+        scriptify(
+            Document::GENERAL,
+            SQLEvent::CreateTable("Follows".to_string()),
+        ),
+        load_script("create_table_follows"),
+    );
+
+    // Tweets script
     scripts.insert(
         scriptify(Document::Tweets, SQLEvent::Insert),
         load_script("insert_tweet"),
     );
     scripts.insert(
+        scriptify(Document::Tweets, SQLEvent::BatchInsert),
+        load_script("batch_insert_tweets"),
+    );
+    scripts.insert(
         scriptify(Document::Tweets, SQLEvent::SelectWhere),
         load_script("select_user_tweets"),
+    );
+    // Follows script
+    scripts.insert(
+        scriptify(Document::Follows, SQLEvent::Insert),
+        load_script("insert_follow"),
+    );
+    scripts.insert(
+        scriptify(Document::Follows, SQLEvent::SelectWhere),
+        load_script("select_user_followers"),
     );
     scripts
 });

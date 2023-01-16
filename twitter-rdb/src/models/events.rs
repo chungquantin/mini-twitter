@@ -2,10 +2,12 @@ use std::fmt::{Display, Formatter, Result as FormatResult};
 
 #[derive(Clone)]
 pub enum SQLEvent {
-    CreateTable,
+    CreateTable(String),
     Insert,
+    BatchInsert,
     SelectWhere,
     SelectOne,
+    Reset,
 }
 
 impl Display for SQLEvent {
@@ -20,7 +22,9 @@ impl From<SQLEvent> for String {
             SQLEvent::Insert => "INSERT".to_string(),
             SQLEvent::SelectWhere => "SELECT_WHERE".to_string(),
             SQLEvent::SelectOne => "SELECT_ONE".to_string(),
-            SQLEvent::CreateTable => "CREATE_TABLE".to_string(),
+            SQLEvent::CreateTable(name) => format!("CREATE_TABLE_{}", name).to_string(),
+            SQLEvent::Reset => "RESET".to_string(),
+            SQLEvent::BatchInsert => "BATCH_INSERT".to_string(),
         };
         event_str
     }

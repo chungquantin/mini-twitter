@@ -1,1 +1,1 @@
-INSERT INTO Tweets (tweet_text) VALUES ($1)
+INSERT INTO Tweets (user_id, tweet_text) VALUES ($1, $2)

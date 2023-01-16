@@ -34,7 +34,7 @@ impl Database {
         match connection_str {
             #[cfg(feature = "rdb_postgres")]
             s if matches!(name, DatabaseVariant::Postgres) => {
-                let db = PostgresAdapter::connect(s).await.unwrap();
+                let db = PostgresAdapter::connect(s, true).await.unwrap();
 
                 Database {
                     inner: Inner::Postgres(db),

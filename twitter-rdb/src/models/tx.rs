@@ -1,10 +1,12 @@
 use crate::{
     errors::DatabaseError,
-    misc::{Arg, Key, Val},
+    misc::{Arg, Key},
 };
 use async_trait::async_trait;
 use futures::lock::Mutex;
 use std::sync::Arc;
+
+use super::FromSuperValues;
 
 pub type CF = Option<Vec<u8>>;
 
@@ -55,10 +57,16 @@ pub trait SimpleTransaction {
         K: Into<Key> + Send,
         A: Into<Arg> + Send;
 
-    async fn get_filtered<K, A>(&self, key: K, args: A) -> Result<Val, DatabaseError>
+    async fn multi_set<K, A>(&mut self, key: K, args: Vec<A>) -> Result<(), DatabaseError>
+    where
+        K: Into<Key> + Send,
+        A: Into<Arg> + Send;
+
+    async fn get_filtered<K, A, V>(&self, key: K, args: A) -> Result<Vec<V>, DatabaseError>
     where
         A: Into<Arg> + Send,
-        K: Into<Key> + Send;
+        K: Into<Key> + Send,
+        V: FromSuperValues;
 
     // /// Insert a key if it doesn't exist in the database
     // async fn put<K: Into<Key> + Send, V: Into<Key> + Send>(
