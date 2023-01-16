@@ -1,11 +1,12 @@
 use async_trait::async_trait;
+use log::info;
 use tokio_postgres::types::ToSql;
 
 use crate::{
     constants::get_sql_script,
     errors::DatabaseError,
     misc::{Arg, Key},
-    models::{DBTransaction, FromSuperValues, SQLEvent, SimpleTransaction, SuperValue},
+    structures::{DBTransaction, FromPostgresRow, SQLEvent, SimpleTransaction, SuperValue},
 };
 
 use super::ty::TxType;
@@ -19,7 +20,7 @@ impl SimpleTransaction for DBTransaction<TxType> {
     }
 
     async fn cancel(&mut self) -> Result<(), DatabaseError> {
-        println!("POSTGRES [START]: Rolling back...");
+        info!("POSTGRES [START]: Rolling back...");
         if self.ok {
             return Err(DatabaseError::TxFinished);
         }
@@ -31,12 +32,12 @@ impl SimpleTransaction for DBTransaction<TxType> {
             Some(tx) => tx.rollback().await?,
             None => unreachable!(),
         }
-        println!("POSTGRES [END]: Rolled back...");
+        info!("POSTGRES [END]: Rolled back...");
         Ok(())
     }
 
     async fn commit(&mut self) -> Result<(), DatabaseError> {
-        println!("POSTGRES [START]: Committing...");
+        info!("POSTGRES [START]: Committing...");
         if self.closed() {
             return Err(DatabaseError::TxFinished);
         }
@@ -52,7 +53,7 @@ impl SimpleTransaction for DBTransaction<TxType> {
             Some(tx) => tx.commit().await?,
             None => unreachable!(),
         }
-        println!("POSTGRES [END]: Committed");
+        info!("POSTGRES [END]: Committed");
         Ok(())
     }
 
@@ -61,7 +62,7 @@ impl SimpleTransaction for DBTransaction<TxType> {
         K: Into<Key> + Send,
         A: Into<Arg> + Send,
     {
-        println!("POSTGRES [START]: Inserting one row...");
+        info!("POSTGRES [START]: Inserting one row...");
         if self.closed() {
             return Err(DatabaseError::TxFinished);
         }
@@ -75,7 +76,6 @@ impl SimpleTransaction for DBTransaction<TxType> {
         let key = key.into();
 
         let pg_params = to_pg_prams(args.into());
-        println!("{:?}", pg_params);
         let pg_params_ref = pg_params
             .iter()
             .map(|x| -> PostgresArgType { x.as_ref() })
@@ -87,7 +87,7 @@ impl SimpleTransaction for DBTransaction<TxType> {
         )
         .await?;
 
-        println!(
+        info!(
             "POSTGRES [END]: Insert one row to table {:?} successfully",
             key
         );
@@ -100,7 +100,7 @@ impl SimpleTransaction for DBTransaction<TxType> {
         K: Into<Key> + Send,
         A: Into<Arg> + Send,
     {
-        println!("POSTGRES [START]: Batch inserting...");
+        info!("POSTGRES [START]: Batch inserting...");
         if self.closed() {
             return Err(DatabaseError::TxFinished);
         }
@@ -132,7 +132,7 @@ impl SimpleTransaction for DBTransaction<TxType> {
         )
         .await?;
 
-        println!("POSTGRES [END]: Insert {:?} rows", len);
+        info!("POSTGRES [END]: Insert {:?} rows", len);
 
         Ok(())
     }
@@ -146,9 +146,9 @@ impl SimpleTransaction for DBTransaction<TxType> {
     where
         A: Into<Arg> + Send,
         K: Into<Key> + Send,
-        V: FromSuperValues,
+        V: FromPostgresRow,
     {
-        println!("POSTGRES [START]: Querying...");
+        info!("POSTGRES [START]: Querying...");
         if self.closed() {
             return Err(DatabaseError::TxFinished);
         }
@@ -158,7 +158,6 @@ impl SimpleTransaction for DBTransaction<TxType> {
         let (key, args) = (key.into(), args.into());
 
         let pg_params = to_pg_prams(args.into());
-        println!("{:?}", pg_params);
         let pg_params_ref = pg_params
             .iter()
             .map(|x| -> PostgresArgType { x.as_ref() })
@@ -172,16 +171,11 @@ impl SimpleTransaction for DBTransaction<TxType> {
             .await?;
 
         let mut result = vec![];
-        for row in rows.iter() {
-            let v = V::from_super_value(vec![
-                SuperValue::Integer(row.get(0)),   // tweet_id
-                SuperValue::Integer(row.get(1)),   // user_id
-                SuperValue::String(row.get(2)),    // tweet_text
-                SuperValue::Timestamp(row.get(3)), // tweet_ts
-            ]);
+        for row in rows {
+            let v = V::from_pg_row(row);
             result.push(v);
         }
-        println!("POSTGRES [END]: Found {:?} items", result.len());
+        info!("POSTGRES [END]: Found {:?} items", result.len());
         Ok(result)
     }
 }

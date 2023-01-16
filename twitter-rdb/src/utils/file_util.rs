@@ -4,8 +4,9 @@ use std::{
     path::Path,
 };
 
-pub fn read_file_string(filepath: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let data = std::fs::read_to_string(filepath)?;
+pub fn read_file_string(path: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let abs_filepath = &get_absolute_path(path);
+    let data = std::fs::read_to_string(abs_filepath)?;
     Ok(data)
 }
 

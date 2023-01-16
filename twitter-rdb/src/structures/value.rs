@@ -1,5 +1,7 @@
 use std::time::SystemTime;
 
+use tokio_postgres::Row;
+
 use crate::errors::DatabaseError;
 
 /// ## SuperValue
@@ -37,39 +39,6 @@ pub trait BorrowFromSuperValue: Sized {
     fn from_super_value<'a>(v: &'a SuperValue) -> Result<&'a Self, DatabaseError>;
 }
 
-macro_rules! impl_borrow_from_super_value {
-    ($t:ty, $v:path) => {
-        impl BorrowFromSuperValue for $t {
-            fn from_super_value<'a>(v: &'a SuperValue) -> Result<&'a $t, DatabaseError> {
-                match v {
-                    $v(e) => Ok(e),
-                    _ => Err(DatabaseError::TypeCastError(
-                        stringify!($v).to_string(),
-                        stringify!($t).to_string(),
-                    )),
-                }
-            }
-        }
-    };
-}
-
-impl SuperValue {
-    pub fn get<'a, T>(&'a self) -> Result<&'a T, DatabaseError>
-    where
-        T: BorrowFromSuperValue,
-    {
-        T::from_super_value(self)
-    }
-}
-
-impl_borrow_from_super_value!(bool, SuperValue::Bool);
-impl_borrow_from_super_value!(String, SuperValue::String);
-impl_borrow_from_super_value!(i8, SuperValue::Char);
-impl_borrow_from_super_value!(i16, SuperValue::SmallInteger);
-impl_borrow_from_super_value!(i32, SuperValue::Integer);
-impl_borrow_from_super_value!(i64, SuperValue::BigInteger);
-impl_borrow_from_super_value!(SystemTime, SuperValue::Timestamp);
-
-pub trait FromSuperValues {
-    fn from_super_value(v: Vec<SuperValue>) -> Self;
+pub trait FromPostgresRow {
+    fn from_pg_row(r: Row) -> Self;
 }

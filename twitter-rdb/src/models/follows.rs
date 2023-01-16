@@ -1,11 +1,9 @@
 use std::time::SystemTime;
 
-use crate::misc::Identifier;
+use crate::{misc::Identifier, structures::FromPostgresRow};
 use serde::{Deserialize, Serialize};
 
-use super::{FromSuperValues, SuperValue};
-
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Follow {
     id: Identifier,
     user_id: Identifier,
@@ -23,13 +21,14 @@ impl Default for Follow {
         }
     }
 }
-impl FromSuperValues for Follow {
-    fn from_super_value(v: Vec<SuperValue>) -> Self {
+
+impl FromPostgresRow for Follow {
+    fn from_pg_row(r: tokio_postgres::Row) -> Self {
         Follow {
-            id: *v[0].get::<Identifier>().unwrap(),
-            user_id: *v[1].get::<Identifier>().unwrap(),
-            follows_id: v[2].get::<Identifier>().unwrap().clone(),
-            follows_ts: *v[3].get::<SystemTime>().unwrap(),
+            id: r.get(0),
+            user_id: r.get(1),
+            follows_id: r.get(2),
+            follows_ts: r.get(3),
         }
     }
 }

@@ -6,14 +6,13 @@ use async_trait::async_trait;
 use futures::lock::Mutex;
 use std::sync::Arc;
 
-use super::FromSuperValues;
-
-pub type CF = Option<Vec<u8>>;
+use super::FromPostgresRow;
 
 pub struct DBTransaction<T>
 where
     T: 'static,
 {
+    pub debug: bool,
     pub tx: Arc<Mutex<Option<T>>>,
     pub ok: bool,
     pub writable: bool,
@@ -24,9 +23,10 @@ impl<TxType> DBTransaction<TxType>
 where
     TxType: 'static,
 {
-    pub fn new(tx: TxType, w: bool) -> Result<Self, DatabaseError> {
+    pub fn new(tx: TxType, w: bool, debug: bool) -> Result<Self, DatabaseError> {
         Ok(DBTransaction {
             tx: Arc::new(Mutex::new(Some(tx))),
+            debug,
             ok: false,
             writable: w,
             readable: true,
@@ -71,7 +71,7 @@ pub trait SimpleTransaction {
     where
         A: Into<Arg> + Send,
         K: Into<Key> + Send,
-        V: FromSuperValues;
+        V: FromPostgresRow;
 
     // /// Insert a key if it doesn't exist in the database
     // async fn put<K: Into<Key> + Send, V: Into<Key> + Send>(

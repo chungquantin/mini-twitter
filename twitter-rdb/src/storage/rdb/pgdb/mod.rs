@@ -4,13 +4,14 @@ mod ty;
 use std::cell::Cell;
 
 use async_trait::async_trait;
+use log::info;
 pub use tx::*;
 pub use ty::*;
 
 use crate::{
     constants::get_sql_script,
     errors::DatabaseError,
-    models::{DBTransaction, DatabaseAdapter, DatabaseType, Document, ImplDatabase, SQLEvent},
+    structures::{DBTransaction, DatabaseAdapter, DatabaseType, Document, ImplDatabase, SQLEvent},
 };
 use tokio_postgres::{Client, NoTls};
 
@@ -29,7 +30,7 @@ impl PostgresAdapter {
         auto_reset: bool,
     ) -> Result<PostgresAdapter, DatabaseError> {
         let (client, connection) = tokio_postgres::connect(connection_str, NoTls).await?;
-        println!("POSTGRES: Connecting and initializing...");
+        info!("POSTGRES: Connecting and initializing...");
 
         // Waiting for connection to settle
         tokio::spawn(async move {
@@ -39,7 +40,7 @@ impl PostgresAdapter {
         });
 
         if auto_reset {
-            println!("POSTGRES: Dropping existing tables...");
+            info!("POSTGRES: Dropping existing tables...");
             client
                 .batch_execute(&get_sql_script(Document::GENERAL, SQLEvent::Reset))
                 .await?;
@@ -54,7 +55,7 @@ impl PostgresAdapter {
                 .await?;
         }
 
-        println!("POSTGRES: Connect and successfully initialize database");
+        info!("POSTGRES: Connect and successfully initialize database");
 
         Ok(PostgresAdapter(DatabaseAdapter::<DBType>::new(
             connection_str.to_string(),
@@ -76,7 +77,7 @@ impl ImplDatabase for PostgresAdapter {
         let db = self.client()?;
         let tx = db.transaction().await.unwrap();
         let longer_lifetime_tx = unsafe { extend_tx_lifetime(tx) };
-        Ok(DBTransaction::<TxType>::new(longer_lifetime_tx, w).unwrap())
+        Ok(DBTransaction::<TxType>::new(longer_lifetime_tx, w, false).unwrap())
     }
 }
 

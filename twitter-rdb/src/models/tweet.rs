@@ -1,11 +1,10 @@
 use std::time::SystemTime;
 
 use crate::misc::{Identifier, UnixTimestamp};
+use crate::structures::FromPostgresRow;
 use serde::{Deserialize, Serialize};
 
-use super::{FromSuperValues, SuperValue};
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Tweet {
     pub tweet_id: Identifier,
     user_id: Identifier,
@@ -24,13 +23,13 @@ impl Default for Tweet {
     }
 }
 
-impl FromSuperValues for Tweet {
-    fn from_super_value(v: Vec<SuperValue>) -> Self {
+impl FromPostgresRow for Tweet {
+    fn from_pg_row(r: tokio_postgres::Row) -> Self {
         Tweet {
-            tweet_id: *v[0].get::<Identifier>().unwrap(),
-            user_id: *v[1].get::<Identifier>().unwrap(),
-            tweet_text: v[2].get::<String>().unwrap().clone(),
-            tweet_ts: *v[3].get::<SystemTime>().unwrap(),
+            tweet_id: r.get(0),
+            user_id: r.get(1),
+            tweet_text: r.get(2),
+            tweet_ts: r.get(3),
         }
     }
 }
@@ -40,9 +39,10 @@ impl Tweet {
         self.user_id
     }
 
-    pub fn partial_new(tweet_text: &'static str) -> Tweet {
+    pub fn partial_new(user_id: Identifier, tweet_text: String) -> Tweet {
         Tweet {
-            tweet_text: tweet_text.to_string(),
+            user_id,
+            tweet_text,
             ..Default::default()
         }
     }

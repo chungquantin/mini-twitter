@@ -4,7 +4,7 @@ use std::cell::Cell;
 
 use tokio_postgres::{Client, Transaction};
 
-use crate::models::DBTransaction;
+use crate::structures::DBTransaction;
 
 pub type DBType = Box<Cell<Client>>;
 pub type TxType = Transaction<'static>;

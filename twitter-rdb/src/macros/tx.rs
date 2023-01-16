@@ -2,10 +2,10 @@ macro_rules! impl_global_transaction {
 		($($x: ident; feat $feat: expr), *) => {
 			use crate::errors::DatabaseError;
 			use crate::misc::{ Key, Arg };
-			use crate::models::FromSuperValues;
+			use crate::structures::FromPostgresRow;
 
 			#[async_trait::async_trait(?Send)]
-			impl crate::models::SimpleTransaction for Transaction {
+			impl crate::structures::SimpleTransaction for Transaction {
 				// Check if closed
 				fn closed(&self) -> bool {
 					match self {
@@ -85,7 +85,7 @@ macro_rules! impl_global_transaction {
 				where
 								A: Into<Arg> + Send,
 								K: Into<Key> + Send,
-								V: FromSuperValues
+								V: FromPostgresRow
 				{
 					match self {
 						$(

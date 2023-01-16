@@ -1,5 +1,5 @@
 use crate::errors::DatabaseError;
-use crate::models::ImplDatabase;
+use crate::structures::ImplDatabase;
 
 #[cfg(feature = "rdb_postgres")]
 use super::PostgresAdapter;

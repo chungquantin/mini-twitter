@@ -1,9 +1,9 @@
-use crate::models::{Follow, SuperValue};
-use crate::storage::{Database, DatabaseRef, Transaction};
 use crate::{
     errors::DatabaseError,
     misc::Identifier,
-    models::{Document, SimpleTransaction, Tweet},
+    models::{Follow, Tweet},
+    storage::{Database, DatabaseRef, Transaction},
+    structures::{Document, SimpleTransaction, SuperValue},
 };
 use std::cell::Cell;
 
@@ -50,13 +50,12 @@ impl TwitterRepository {
     pub async fn batch_create_tweets(
         &mut self,
         tx: &mut Transaction,
-        user_id: Identifier,
-        tweets: &[Tweet; 5],
+        tweets: Vec<Tweet>,
     ) -> Result<(), DatabaseError> {
         let mut params = vec![];
         for tweet in tweets {
             let sub_params = vec![
-                SuperValue::Integer(user_id),
+                SuperValue::Integer(tweet.author()),
                 SuperValue::String(tweet.tweet_text.clone()),
             ];
             params.push(sub_params);
@@ -113,11 +112,23 @@ impl TwitterRepository {
         &mut self,
         tx: Transaction,
         user_id: Identifier,
+        limit: Option<i64>,
+        offset: Option<i64>,
     ) -> Result<Vec<Follow>, DatabaseError> {
         let followers: Vec<Follow> = tx
             .get_filtered(
                 Document::Follows,
-                vec![SuperValue::Integer(user_id)],
+                vec![
+                    SuperValue::Integer(user_id),
+                    match limit {
+                        Some(l) => SuperValue::BigInteger(l),
+                        None => SuperValue::BigInteger(i64::MAX),
+                    },
+                    match offset {
+                        Some(o) => SuperValue::BigInteger(o),
+                        None => SuperValue::BigInteger(0),
+                    },
+                ],
                 &["user_followers"],
             )
             .await?;
@@ -129,11 +140,23 @@ impl TwitterRepository {
         &mut self,
         tx: Transaction,
         user_id: Identifier,
+        limit: Option<i64>,
+        offset: Option<i64>,
     ) -> Result<Vec<Follow>, DatabaseError> {
         let followers: Vec<Follow> = tx
             .get_filtered(
                 Document::Follows,
-                vec![SuperValue::Integer(user_id)],
+                vec![
+                    SuperValue::Integer(user_id),
+                    match limit {
+                        Some(l) => SuperValue::BigInteger(l),
+                        None => SuperValue::BigInteger(i64::MAX),
+                    },
+                    match offset {
+                        Some(o) => SuperValue::BigInteger(o),
+                        None => SuperValue::BigInteger(0),
+                    },
+                ],
                 &["user_followees"],
             )
             .await?;
@@ -150,7 +173,7 @@ impl TwitterRepository {
             .get_filtered(
                 Document::Follows,
                 vec![SuperValue::Integer(user_id)],
-                &["user_random_followees"],
+                &["user_random_followee"],
             )
             .await?;
 
