@@ -93,6 +93,34 @@ impl TwitterRepository {
         Ok(tweets)
     }
 
+    pub async fn get_most_recent_tweets(
+        &mut self,
+        tx: &Transaction,
+        user_id: Identifier,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> Result<Vec<Tweet>, DatabaseError> {
+        let tweets: Vec<Tweet> = tx
+            .get_filtered(
+                Document::Tweets,
+                vec![
+                    SuperValue::Integer(user_id),
+                    match limit {
+                        Some(l) => SuperValue::BigInteger(l),
+                        None => SuperValue::BigInteger(i64::MAX),
+                    },
+                    match offset {
+                        Some(o) => SuperValue::BigInteger(o),
+                        None => SuperValue::BigInteger(0),
+                    },
+                ],
+                &["user_recent_tweets"],
+            )
+            .await?;
+
+        Ok(tweets)
+    }
+
     pub async fn create_follow(
         &mut self,
         tx: &mut Transaction,

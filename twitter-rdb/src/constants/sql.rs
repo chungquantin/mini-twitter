@@ -32,6 +32,10 @@ pub static GLOBAL_SQL_SCRIPTS: Lazy<HashMap<String, String>> = Lazy::new(|| {
         load_script("reset"),
     );
     scripts.insert(
+        scriptify(Document::GENERAL, SQLEvent::CreateIndices),
+        load_script("create_indices"),
+    );
+    scripts.insert(
         scriptify(
             Document::GENERAL,
             SQLEvent::CreateTable("Tweets".to_string()),
@@ -59,6 +63,11 @@ pub static GLOBAL_SQL_SCRIPTS: Lazy<HashMap<String, String>> = Lazy::new(|| {
         scriptify(Document::Tweets, SQLEvent::Select("user_tweets")),
         load_script("select_user_tweets"),
     );
+    scripts.insert(
+        scriptify(Document::Tweets, SQLEvent::Select("user_recent_tweets")),
+        load_script("select_user_recent_tweets"),
+    );
+
     // Follows script
     scripts.insert(
         scriptify(Document::Follows, SQLEvent::Select("user_random_followee")),

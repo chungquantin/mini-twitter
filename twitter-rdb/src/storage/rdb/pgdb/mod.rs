@@ -55,6 +55,10 @@ impl PostgresAdapter {
                 .await?;
         }
 
+        client
+            .batch_execute(&get_sql_script(Document::GENERAL, SQLEvent::CreateIndices))
+            .await?;
+
         info!("POSTGRES: Connect and successfully initialize database");
 
         Ok(PostgresAdapter(DatabaseAdapter::<DBType>::new(

@@ -3,6 +3,7 @@ use std::fmt::{Display, Formatter, Result as FormatResult};
 #[derive(Clone)]
 pub enum SQLEvent {
     CreateTable(String),
+    CreateIndices,
     Insert,
     BatchInsert,
     Select(&'static str),
@@ -23,6 +24,7 @@ impl From<SQLEvent> for String {
             SQLEvent::CreateTable(name) => format!("CREATE_TABLE_{}", name).to_string(),
             SQLEvent::Reset => "RESET".to_string(),
             SQLEvent::BatchInsert => "BATCH_INSERT".to_string(),
+            SQLEvent::CreateIndices => "CREATE_INDICES".to_string(),
         };
         event_str
     }

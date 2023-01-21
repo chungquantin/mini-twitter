@@ -1,14 +1,12 @@
 use api::TwitterApi;
 use colored::Colorize;
 use errors::DatabaseError;
+use indicatif::ProgressBar;
 use models::Tweet;
-use std::time::Instant;
 use storage::{Database, DatabaseRef, DatabaseVariant};
+use utils::{start_benchmarking, stop_benchmarking};
 
-use crate::{
-    models::Follow,
-    utils::{average, load_from_csv, log_stage},
-};
+use crate::{models::Follow, utils::load_from_csv};
 
 mod api;
 mod constants;
@@ -22,35 +20,19 @@ mod repo;
 mod storage;
 mod utils;
 
-pub fn start_benchmarking(stage: &'static str, title: &'static str) -> Instant {
-    log_stage(stage, title);
-    Instant::now()
-}
+static GLOBAL_USE_SAMPLE: bool = false;
 
-pub fn stop_benchmarking(instant: Instant) {
-    let elapsed = instant.elapsed();
-    println!(
-        "==> Total execution time: {}",
-        format!("{:.2?}", elapsed).blue()
-    );
-}
-
-#[tokio::main]
-async fn main() -> Result<(), DatabaseError> {
-    let connection_str = "user=postgres host=localhost port=5433";
-    let database = Database::connect(DatabaseVariant::Postgres, connection_str).await;
-    let database_ref = DatabaseRef::new(database);
-    let mut twitter_api = TwitterApi::new(database_ref);
-    let use_sample = false;
-
-    let mut t = start_benchmarking("PREPARATION", "Load tweets from CSV file");
+fn benchmark_load_tweets_from_csv() -> Vec<Tweet> {
+    let t = start_benchmarking("PREPARATION", "Load tweets from CSV file");
     let mut loaded_tweets = vec![];
-    let tweets_records = load_from_csv(if use_sample {
+    let tweets_records = load_from_csv(if GLOBAL_USE_SAMPLE {
         "./dataset/tweet_sample.csv"
     } else {
         "./dataset/tweet.csv"
     });
+    let pb = ProgressBar::new(tweets_records.len().try_into().unwrap());
     for record in tweets_records {
+        pb.inc(1);
         let user_id = record.get(0).unwrap();
         let parsed_user_id = user_id.parse::<i32>().unwrap();
         let tweet_text = record.get(1).unwrap().to_string();
@@ -59,14 +41,23 @@ async fn main() -> Result<(), DatabaseError> {
     }
     stop_benchmarking(t);
 
-    t = start_benchmarking("PREPARATION", "Load and populate follows from CSV file");
-    let follows_records = load_from_csv(if use_sample {
+    loaded_tweets
+}
+
+async fn benchmark_load_follows_from_csv(
+    twitter_api: &mut TwitterApi,
+) -> Result<(), DatabaseError> {
+    let t = start_benchmarking("PREPARATION", "Load and populate follows from CSV file");
+    let follows_records = load_from_csv(if GLOBAL_USE_SAMPLE {
         "./dataset/follows_sample.csv"
     } else {
         "./dataset/follows.csv"
     });
+
     let mut follows = vec![];
+    let pb = ProgressBar::new(follows_records.len().try_into().unwrap());
     for record in follows_records {
+        pb.inc(1);
         let user_id = record.get(0).unwrap();
         let parsed_user_id = user_id.parse::<i32>().unwrap();
         let follow_id = record.get(1).unwrap();
@@ -74,71 +65,90 @@ async fn main() -> Result<(), DatabaseError> {
         let follow = Follow::partial_new(parsed_user_id.clone(), parsed_follow_id.clone());
         follows.push(follow);
     }
-    twitter_api.batch_create_follows(follows).await?;
+
+    twitter_api.batch_create_follows(follows, true).await?;
     stop_benchmarking(t);
+    Ok(())
+}
 
-    // t = start_benchmarking("POST TWEETS", "Using single insert");
-    // // time per request
-    // let mut tps_ptr = Instant::now();
-    // let mut tps: Vec<u128> = vec![];
-    // for tweet in loaded_tweets.to_vec() {
-    //     twitter_api.post_tweet(tweet).await?;
-    //     let cur = tps_ptr.elapsed();
-    //     tps.push(cur.as_millis());
-    //     tps_ptr = Instant::now();
-    // }
-    // let avg_tps = average(tps);
-    // println!(
-    //     "==> Average time per request: {} ms",
-    //     format!("{}", avg_tps).blue()
-    // );
-    // stop_benchmarking(t);
+async fn benchmark_post_tweets_single_insert(
+    twitter_api: &mut TwitterApi,
+    loaded_tweets: Vec<Tweet>,
+) -> Result<(), DatabaseError> {
+    let t = start_benchmarking("POST TWEETS", "Using single insert");
+    let pb = ProgressBar::new(loaded_tweets.len().try_into().unwrap());
+    for tweet in loaded_tweets.to_vec() {
+        pb.inc(1);
+        twitter_api.post_tweet(tweet, false).await?;
+    }
+    let rps = loaded_tweets.len() as u64 / t.elapsed().as_secs();
+    println!("==> Request per second: {}", format!("{}", rps).blue());
+    stop_benchmarking(t);
+    Ok(())
+}
 
-    t = start_benchmarking("POST TWEETS", "Batch insert | Batch size = 5");
-    let mut tps_ptr = Instant::now();
-    let mut tps: Vec<u128> = vec![];
-
-    let batch_size = 5;
+async fn benchmark_post_tweets_batch_insert(
+    twitter_api: &mut TwitterApi,
+    loaded_tweets: Vec<Tweet>,
+) -> Result<(), DatabaseError> {
+    let t = start_benchmarking("POST TWEETS", "Batch insert | Batch size = 5");
+    let batch_size: usize = 5;
     let mut cur = 0;
+    let pb = ProgressBar::new(loaded_tweets.len().try_into().unwrap());
     while cur <= loaded_tweets.len() {
+        pb.inc(batch_size.try_into().unwrap());
         let end = std::cmp::min(cur + batch_size, loaded_tweets.len());
         let batch = &loaded_tweets.as_slice()[cur..end];
-        let cur_dur = tps_ptr.elapsed();
-        tps.push(cur_dur.as_nanos());
 
         cur = cur + batch_size;
         if batch.len() < batch_size {
             for tweet in batch.to_vec() {
-                twitter_api.post_tweet(tweet).await?;
+                twitter_api.post_tweet(tweet, true).await?;
             }
         } else {
-            twitter_api.batch_post_tweets(batch.to_vec()).await?;
+            twitter_api.batch_post_tweets(batch.to_vec(), true).await?;
         }
-
-        tps_ptr = Instant::now();
     }
-    let avg_tps = average(tps);
-    println!(
-        "==> Average time per request: {} ns",
-        format!("{:.2?}", avg_tps).blue()
-    );
+    let rps = loaded_tweets.len() as u64 / t.elapsed().as_secs();
+    println!("==> Request per second: {}", format!("{}", rps).blue());
     stop_benchmarking(t);
+
+    Ok(())
+}
+
+#[tokio::main]
+async fn main() -> Result<(), DatabaseError> {
+    let connection_str = "user=postgres host=localhost port=5433";
+    let database = Database::connect(DatabaseVariant::Postgres, connection_str).await;
+    let database_ref = DatabaseRef::new(database);
+    let mut twitter_api = TwitterApi::new(database_ref);
+
+    let loaded_tweets = benchmark_load_tweets_from_csv();
+    benchmark_load_follows_from_csv(&mut twitter_api).await?;
+    // benchmark_post_tweets_single_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
+    benchmark_post_tweets_batch_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
 
     let user_id = 1;
 
-    t = start_benchmarking("USER TIMELINE", "Return user followers");
+    let t = start_benchmarking("USER Followers", "Return user followers");
     let tweets = twitter_api.get_followers(user_id, None, None).await?;
     println!("{:?}", tweets);
     stop_benchmarking(t);
 
-    t = start_benchmarking("USER TIMELINE", "Return user followees");
+    let t = start_benchmarking("USER Followees", "Return user followees");
     let tweets = twitter_api.get_followees(user_id, None, None).await?;
     println!("{:?}", tweets);
     stop_benchmarking(t);
 
-    t = start_benchmarking("USER TIMELINE", "Return that random user’s home timeline");
-    let tweets = twitter_api.get_timeline(user_id).await?;
-    println!("{:?}", tweets);
+    let t = start_benchmarking("USER TIMELINE", "Return that random user’s home timeline");
+    let mut total_timelines_fetched = 0;
+    while t.elapsed().as_secs() < 100 {
+        twitter_api.get_timeline(user_id).await?;
+        total_timelines_fetched += 1;
+    }
+    println!("Total timelines fetched: {}", total_timelines_fetched);
+    let tps = total_timelines_fetched / t.elapsed().as_secs();
+    println!("Timeline per second: {}", tps);
     stop_benchmarking(t);
 
     Ok(())
