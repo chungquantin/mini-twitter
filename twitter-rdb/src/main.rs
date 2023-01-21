@@ -128,7 +128,7 @@ async fn main() -> Result<(), DatabaseError> {
     // benchmark_post_tweets_single_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
     benchmark_post_tweets_batch_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
 
-    let user_id = 1;
+    let user_id = 459;
 
     let t = start_benchmarking("USER Followers", "Return user followers");
     let tweets = twitter_api.get_followers(user_id, None, None).await?;
