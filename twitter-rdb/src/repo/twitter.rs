@@ -140,6 +140,7 @@ impl TwitterRepository {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn get_user_followers(
         &mut self,
         tx: Transaction,
@@ -168,6 +169,7 @@ impl TwitterRepository {
         Ok(followers)
     }
 
+    #[allow(dead_code)]
     pub async fn get_user_followees(
         &mut self,
         tx: Transaction,

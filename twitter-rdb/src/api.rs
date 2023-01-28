@@ -61,14 +61,8 @@ impl TwitterApi {
 
     pub async fn get_timeline(&mut self, user_id: Identifier) -> Result<Vec<Tweet>, DatabaseError> {
         let tx = self.repo.tx().await;
-        let followee = self.repo.get_random_followee(tx, user_id).await?;
-
-        let mut result = vec![];
-        if let Some(f) = followee {
-            result = self.get_most_recent_tweets(f.to(), Some(10), None).await?;
-        }
-
-        Ok(result)
+        let tweets = self.repo.get_timeline(tx, user_id).await?;
+        Ok(tweets)
     }
 
     pub async fn get_followers(
