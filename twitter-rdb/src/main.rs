@@ -144,8 +144,8 @@ async fn main() -> Result<(), DatabaseError> {
     // more than 5 tweets at a time into the insert.
     let loaded_tweets = benchmark_load_tweets_from_csv();
     let followers = benchmark_load_follows_from_csv(&mut twitter_api).await?;
-    // benchmark_post_tweets_single_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
-    // benchmark_post_tweets_batch_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
+    benchmark_post_tweets_single_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
+    benchmark_post_tweets_batch_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
 
     // Second Program:
     // Write a second program that repeatedly picks a random user and returns that user’s home
