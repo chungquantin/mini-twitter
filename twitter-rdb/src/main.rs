@@ -120,16 +120,16 @@ async fn benchmark_post_tweets_batch_insert(
 #[tokio::main]
 async fn main() -> Result<(), DatabaseError> {
     let connection_str = "user=postgres host=localhost port=5433";
-    let database = Database::connect(DatabaseVariant::Postgres, connection_str, false).await;
+    let database = Database::connect(DatabaseVariant::Postgres, connection_str, true).await;
     let database_ref = DatabaseRef::new(database);
     let mut twitter_api = TwitterApi::new(database_ref);
 
-    // let loaded_tweets = benchmark_load_tweets_from_csv();
-    // benchmark_load_follows_from_csv(&mut twitter_api).await?;
-    // benchmark_post_tweets_single_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
-    // benchmark_post_tweets_batch_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
+    let loaded_tweets = benchmark_load_tweets_from_csv();
+    benchmark_load_follows_from_csv(&mut twitter_api).await?;
+    benchmark_post_tweets_single_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
+    benchmark_post_tweets_batch_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
 
-    let user_id = 1;
+    let user_id = 459;
 
     let t = start_benchmarking("USER Followers", "Return user followers");
     let tweets = twitter_api.get_followers(user_id, None, None).await?;
