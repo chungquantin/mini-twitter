@@ -30,11 +30,15 @@ pub struct Database {
 }
 
 impl Database {
-    pub async fn connect(name: DatabaseVariant, connection_str: &str) -> Database {
+    pub async fn connect(
+        name: DatabaseVariant,
+        connection_str: &str,
+        auto_reset: bool,
+    ) -> Database {
         match connection_str {
             #[cfg(feature = "rdb_postgres")]
             s if matches!(name, DatabaseVariant::Postgres) => {
-                let db = PostgresAdapter::connect(s, true).await.unwrap();
+                let db = PostgresAdapter::connect(s, auto_reset).await.unwrap();
 
                 Database {
                     inner: Inner::Postgres(db),

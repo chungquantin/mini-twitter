@@ -44,20 +44,20 @@ impl PostgresAdapter {
             client
                 .batch_execute(&get_sql_script(Document::GENERAL, SQLEvent::Reset))
                 .await?;
-        }
-
-        for table_name in vec!["Tweets", "Follows"].iter() {
+            // Create tables
+            for table_name in vec!["Tweets", "Follows"].iter() {
+                client
+                    .batch_execute(&get_sql_script(
+                        Document::GENERAL,
+                        SQLEvent::CreateTable(table_name.to_string()),
+                    ))
+                    .await?;
+            }
+            // Create secondary indexing
             client
-                .batch_execute(&get_sql_script(
-                    Document::GENERAL,
-                    SQLEvent::CreateTable(table_name.to_string()),
-                ))
+                .batch_execute(&get_sql_script(Document::GENERAL, SQLEvent::CreateIndices))
                 .await?;
         }
-
-        client
-            .batch_execute(&get_sql_script(Document::GENERAL, SQLEvent::CreateIndices))
-            .await?;
 
         info!("POSTGRES: Connect and successfully initialize database");
 

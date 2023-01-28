@@ -47,6 +47,7 @@ impl TwitterRepository {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn batch_create_tweets(
         &mut self,
         tx: &mut Transaction,
@@ -65,6 +66,7 @@ impl TwitterRepository {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn get_user_tweets(
         &mut self,
         tx: &Transaction,
@@ -93,6 +95,7 @@ impl TwitterRepository {
         Ok(tweets)
     }
 
+    #[allow(dead_code)]
     pub async fn get_most_recent_tweets(
         &mut self,
         tx: &Transaction,
@@ -121,6 +124,7 @@ impl TwitterRepository {
         Ok(tweets)
     }
 
+    #[allow(dead_code)]
     pub async fn create_follow(
         &mut self,
         tx: &mut Transaction,
@@ -192,6 +196,7 @@ impl TwitterRepository {
         Ok(followers)
     }
 
+    #[allow(dead_code)]
     pub async fn get_random_followee(
         &mut self,
         tx: Transaction,
@@ -206,5 +211,25 @@ impl TwitterRepository {
             .await?;
 
         Ok(followers.first().cloned())
+    }
+
+    pub async fn get_timeline(
+        &mut self,
+        tx: Transaction,
+        user_id: Identifier,
+    ) -> Result<Vec<Tweet>, DatabaseError> {
+        let tweets: Vec<Tweet> = tx
+            .get_filtered(
+                Document::Tweets,
+                vec![
+                    SuperValue::Integer(user_id),
+                    SuperValue::BigInteger(10),
+                    SuperValue::BigInteger(0),
+                ],
+                &["user_timeline"],
+            )
+            .await?;
+
+        Ok(tweets)
     }
 }

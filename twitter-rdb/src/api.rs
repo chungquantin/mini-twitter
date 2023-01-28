@@ -18,6 +18,7 @@ impl TwitterApi {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn batch_create_follows(
         &mut self,
         f: Vec<Follow>,
@@ -44,6 +45,7 @@ impl TwitterApi {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn batch_post_tweets(
         &mut self,
         t: Vec<Tweet>,
@@ -107,20 +109,6 @@ impl TwitterApi {
         let tweets = self
             .repo
             .get_most_recent_tweets(tx, user_id, limit, offset)
-            .await?;
-        Ok(tweets)
-    }
-
-    pub async fn get_tweets(
-        &mut self,
-        user_id: Identifier,
-        limit: Option<i64>,
-        offset: Option<i64>,
-    ) -> Result<Vec<Tweet>, DatabaseError> {
-        let tx = &mut self.repo.tx().await;
-        let tweets = self
-            .repo
-            .get_user_tweets(tx, user_id, limit, offset)
             .await?;
         Ok(tweets)
     }

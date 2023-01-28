@@ -67,6 +67,10 @@ pub static GLOBAL_SQL_SCRIPTS: Lazy<HashMap<String, String>> = Lazy::new(|| {
         scriptify(Document::Tweets, SQLEvent::Select("user_recent_tweets")),
         load_script("select_user_recent_tweets"),
     );
+    scripts.insert(
+        scriptify(Document::Tweets, SQLEvent::Select("user_timeline")),
+        load_script("select_user_timeline"),
+    );
 
     // Follows script
     scripts.insert(
