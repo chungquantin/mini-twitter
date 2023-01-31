@@ -6,11 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["rdb_postgres"]
+default = ["rdb_postgres", "kvs_redis"]
 rdb_postgres = ["tokio-postgres"]
+kvs_redis = ["redis"]
 
 [dependencies]
 tokio = { version = "1.24.1", features = ["full"] }
+tokio-postgres = { version = "0.7.7", optional = true }
+redis = { version = "0.22.3", optional = true, features = ["tokio-comp"] }
 anyhow = "1.0.68"
 once_cell = "1.17.0"
 thiserror = "1.0.38"
@@ -18,7 +21,6 @@ serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.91"
 async-trait = "0.1.58"
 futures = "0.3.25"
-tokio-postgres = { version = "0.7.7", optional = true }
 path-absolutize = "3.0.14"
 csv = "1.1.6"
 colored = "2.0.0"

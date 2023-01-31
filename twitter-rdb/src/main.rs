@@ -1,8 +1,9 @@
+use std::collections::HashMap;
+
 use crate::{models::Follow, utils::load_from_csv};
 use api::TwitterApi;
 use colored::Colorize;
 use errors::DatabaseError;
-use futures::future;
 use indicatif::ProgressBar;
 use models::Tweet;
 use rand::seq::SliceRandom;
@@ -21,7 +22,7 @@ mod repo;
 mod storage;
 mod utils;
 
-static GLOBAL_USE_SAMPLE: bool = false;
+static GLOBAL_USE_SAMPLE: bool = true;
 
 fn benchmark_load_tweets_from_csv() -> Vec<Tweet> {
     let t = start_benchmarking("PREPARATION", "Load tweets from CSV file");
@@ -127,10 +128,21 @@ async fn benchmark_post_tweets_batch_insert(
     Ok(())
 }
 
+fn get_connection_str(variant: DatabaseVariant) -> &'static str {
+    let connections: HashMap<DatabaseVariant, &'static str> = HashMap::from([
+        (
+            DatabaseVariant::Postgres,
+            "user=postgres host=localhost port=5433",
+        ),
+        (DatabaseVariant::Redis, "redis://127.0.0.1/"),
+    ]);
+    connections.get(&variant).unwrap()
+}
+
 #[tokio::main]
 async fn main() -> Result<(), DatabaseError> {
-    let connection_str = "user=postgres host=localhost port=5433";
-    let database = Database::connect(DatabaseVariant::Postgres, connection_str, false).await;
+    let variant = DatabaseVariant::Redis;
+    let database = Database::connect(variant.clone(), get_connection_str(variant), false).await;
     let database_ref = DatabaseRef::new(database);
     let mut twitter_api = TwitterApi::new(database_ref);
 

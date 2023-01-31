@@ -3,6 +3,8 @@ use crate::structures::ImplDatabase;
 
 #[cfg(feature = "rdb_postgres")]
 use super::PostgresAdapter;
+
+use super::RedisAdapter;
 use super::Transaction;
 
 pub struct DatabaseRef {
@@ -19,10 +21,14 @@ impl DatabaseRef {
 pub enum Inner {
     #[cfg(feature = "rdb_postgres")]
     Postgres(PostgresAdapter),
+    #[cfg(feature = "kvs_redis")]
+    Redis(RedisAdapter),
 }
 
+#[derive(Hash, Clone, PartialEq, Eq)]
 pub enum DatabaseVariant {
     Postgres,
+    Redis,
 }
 
 pub struct Database {
@@ -44,6 +50,14 @@ impl Database {
                     inner: Inner::Postgres(db),
                 }
             }
+            #[cfg(feature = "kvs_redis")]
+            s if matches!(name, DatabaseVariant::Redis) => {
+                let db = RedisAdapter::connect(s, auto_reset).await.unwrap();
+
+                Database {
+                    inner: Inner::Redis(db),
+                }
+            }
             _ => unimplemented!(),
         }
     }
@@ -62,7 +76,8 @@ impl Database {
 			};
 		}
         impl_transaction_method!(
-            Postgres feat "rdb_postgres"
+            Postgres feat "rdb_postgres",
+            Redis feat "kvs_redis"
         )
     }
 
@@ -83,7 +98,8 @@ impl Database {
 			};
 		}
         impl_transaction_method!(
-            Postgres feat "rdb_postgres"
+            Postgres feat "rdb_postgres",
+            Redis feat "kvs_redis"
         )
     }
 }

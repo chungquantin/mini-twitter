@@ -1,3 +1,4 @@
+use redis::RedisError;
 use thiserror::Error;
 use tokio_postgres::Error as PostgresError;
 
@@ -45,6 +46,12 @@ pub enum DatabaseError {
 
 impl From<PostgresError> for DatabaseError {
     fn from(err: PostgresError) -> DatabaseError {
+        DatabaseError::Database(err.to_string())
+    }
+}
+
+impl From<RedisError> for DatabaseError {
+    fn from(err: RedisError) -> DatabaseError {
         DatabaseError::Database(err.to_string())
     }
 }

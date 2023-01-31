@@ -1,3 +1,3 @@
-mod pgdb;
+mod postgres_;
 
-pub use pgdb::*;
+pub use postgres_::*;
