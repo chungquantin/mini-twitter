@@ -1,12 +1,14 @@
 use async_trait::async_trait;
-use log::info;
 use tokio_postgres::types::ToSql;
 
 use crate::{
     constants::get_sql_script,
     errors::DatabaseError,
     misc::{Arg, Key},
-    structures::{DBTransaction, FromPostgresRow, SQLEvent, SimpleTransaction, SuperValue},
+    structures::{
+        DBTransaction, FromPostgresRow, KeywordBucket, SQLEvent, SimpleTransaction, SuperValue,
+    },
+    utils::sss,
 };
 
 use super::ty::TxType;
@@ -20,7 +22,6 @@ impl SimpleTransaction for DBTransaction<TxType> {
     }
 
     async fn cancel(&mut self) -> Result<(), DatabaseError> {
-        info!("POSTGRES [START]: Rolling back...");
         if self.ok {
             return Err(DatabaseError::TxFinished);
         }
@@ -32,12 +33,10 @@ impl SimpleTransaction for DBTransaction<TxType> {
             Some(tx) => tx.rollback().await?,
             None => unreachable!(),
         }
-        info!("POSTGRES [END]: Rolled back...");
         Ok(())
     }
 
     async fn commit(&mut self) -> Result<(), DatabaseError> {
-        info!("POSTGRES [START]: Committing...");
         if self.closed() {
             return Err(DatabaseError::TxFinished);
         }
@@ -53,16 +52,19 @@ impl SimpleTransaction for DBTransaction<TxType> {
             Some(tx) => tx.commit().await?,
             None => unreachable!(),
         }
-        info!("POSTGRES [END]: Committed");
         Ok(())
     }
 
-    async fn set<K, A>(&mut self, key: K, args: A) -> Result<(), DatabaseError>
+    async fn set<K, A>(
+        &mut self,
+        key: K,
+        args: A,
+        _keywords: KeywordBucket,
+    ) -> Result<(), DatabaseError>
     where
         K: Into<Key> + Send,
         A: Into<Arg> + Send,
     {
-        info!("POSTGRES [START]: Inserting one row...");
         if self.closed() {
             return Err(DatabaseError::TxFinished);
         }
@@ -87,11 +89,6 @@ impl SimpleTransaction for DBTransaction<TxType> {
         )
         .await?;
 
-        info!(
-            "POSTGRES [END]: Insert one row to table {:?} successfully",
-            key
-        );
-
         Ok(())
     }
 
@@ -100,7 +97,6 @@ impl SimpleTransaction for DBTransaction<TxType> {
         K: Into<Key> + Send,
         A: Into<Arg> + Send,
     {
-        info!("POSTGRES [START]: Batch inserting...");
         if self.closed() {
             return Err(DatabaseError::TxFinished);
         }
@@ -113,11 +109,9 @@ impl SimpleTransaction for DBTransaction<TxType> {
         let tx = guarded_tx.as_mut().unwrap();
 
         let mut batch_params: Vec<Box<dyn ToSql + Send + Sync>> = vec![];
-        let mut len = 0;
         for arg_item in args {
             let mut pg_params = to_pg_prams(arg_item.into());
             batch_params.append(&mut pg_params);
-            len += 1;
         }
 
         let pg_params_ref = batch_params
@@ -132,23 +126,20 @@ impl SimpleTransaction for DBTransaction<TxType> {
         )
         .await?;
 
-        info!("POSTGRES [END]: Insert {:?} rows", len);
-
         Ok(())
     }
 
-    async fn get_filtered<K, A, V>(
+    async fn get<K, A, V>(
         &self,
         key: K,
         args: A,
-        keywords: &[&'static str],
+        keywords: KeywordBucket,
     ) -> Result<Vec<V>, DatabaseError>
     where
         A: Into<Arg> + Send,
         K: Into<Key> + Send,
         V: FromPostgresRow,
     {
-        info!("POSTGRES [START]: Querying...");
         if self.closed() {
             return Err(DatabaseError::TxFinished);
         }
@@ -163,9 +154,10 @@ impl SimpleTransaction for DBTransaction<TxType> {
             .map(|x| -> PostgresArgType { x.as_ref() })
             .collect::<Vec<PostgresArgType>>();
 
+        let script = sss(keywords.get("select_script").unwrap());
         let rows = tx
             .query(
-                &get_sql_script(key.clone(), SQLEvent::Select(keywords[0])),
+                &get_sql_script(key.clone(), SQLEvent::Select(script)),
                 &pg_params_ref,
             )
             .await?;
@@ -175,23 +167,27 @@ impl SimpleTransaction for DBTransaction<TxType> {
             let v = V::from_pg_row(row);
             result.push(v);
         }
-        info!("POSTGRES [END]: Found {:?} items", result.len());
         Ok(result)
     }
 }
 
-fn to_pg_prams(params: Vec<SuperValue>) -> Vec<Box<(dyn ToSql + Send + Sync + 'static)>> {
-    let mut pg_params: Vec<Box<(dyn ToSql + Send + Sync + 'static)>> = vec![];
+type PostgresReturnType = Box<(dyn ToSql + Send + Sync + 'static)>;
+fn to_pg_prams(params: Vec<SuperValue>) -> Vec<PostgresReturnType> {
+    let mut result: Vec<PostgresReturnType> = vec![];
     for item in params {
-        match item {
-            SuperValue::String(v) => pg_params.push(Box::new(v)),
-            SuperValue::Integer(v) => pg_params.push(Box::new(v)),
-            SuperValue::BigInteger(v) => pg_params.push(Box::new(v)),
-            SuperValue::SmallInteger(v) => pg_params.push(Box::new(v)),
-            SuperValue::Char(v) => pg_params.push(Box::new(v)),
-            _ => unimplemented!(),
-        };
+        macro_rules! param_convert {
+            ($($SuperValueType: ident),*) => {
+                match item {
+                    $(
+                        SuperValue::$SuperValueType(v) => result.push(
+                            Box::new(v)
+                        ),
+                    )*
+                    _ => unimplemented!()
+                }
+            };
+        }
+        param_convert!(String, Integer, BigInteger, SmallInteger, Char);
     }
-
-    pg_params
+    result
 }

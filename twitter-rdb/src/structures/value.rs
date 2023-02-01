@@ -26,7 +26,6 @@ pub enum SuperValue {
     Char(i8),
     SmallInteger(i16),
     Integer(i32),
-    OID(u32),
     Real(f32),
     Double(f64),
     BigInteger(i64),

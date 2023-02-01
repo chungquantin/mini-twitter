@@ -1,11 +1,10 @@
 use async_trait::async_trait;
 use log::info;
-use tokio_postgres::types::ToSql;
 
 use crate::{
     errors::DatabaseError,
     misc::{Arg, Key},
-    structures::{DBTransaction, FromPostgresRow, SimpleTransaction, SuperValue},
+    structures::{DBTransaction, FromPostgresRow, KeywordBucket, SimpleTransaction, SuperValue},
 };
 
 use super::ty::TxType;
@@ -23,8 +22,16 @@ impl SimpleTransaction for DBTransaction<TxType> {
 
         self.ok = true;
 
-        let mut tx = self.tx.lock().await;
-        unimplemented!();
+        let mut guarded_tx = self.tx.lock().await;
+        let conn = guarded_tx.as_mut().unwrap();
+
+        let _: () = redis::cmd("DISCARD").query_async(conn).await?;
+        // if &status != "OK" {
+        //     return Err(DatabaseError::Tx(
+        //         "Transaction is not discarded".to_string(),
+        //     ));
+        // }
+
         Ok(())
     }
 
@@ -39,17 +46,28 @@ impl SimpleTransaction for DBTransaction<TxType> {
 
         self.ok = true;
 
-        let mut tx = self.tx.lock().await;
-        unimplemented!();
+        let mut guarded_tx = self.tx.lock().await;
+        let conn = guarded_tx.as_mut().unwrap();
+        let _: () = redis::cmd("EXEC").query_async(conn).await?;
+        // if &status != "OK" {
+        //     return Err(DatabaseError::Tx(
+        //         "Transaction is not committed".to_string(),
+        //     ));
+        // }
+
         Ok(())
     }
 
-    async fn set<K, A>(&mut self, key: K, args: A) -> Result<(), DatabaseError>
+    async fn set<K, A>(
+        &mut self,
+        key: K,
+        args: A,
+        keywords: KeywordBucket,
+    ) -> Result<(), DatabaseError>
     where
         K: Into<Key> + Send,
         A: Into<Arg> + Send,
     {
-        info!("POSTGRES [START]: Inserting one row...");
         if self.closed() {
             return Err(DatabaseError::TxFinished);
         }
@@ -59,10 +77,9 @@ impl SimpleTransaction for DBTransaction<TxType> {
         }
 
         let mut guarded_tx = self.tx.lock().await;
-        let tx = guarded_tx.as_mut().unwrap();
+        let conn = guarded_tx.as_mut().unwrap();
         let key = key.into();
 
-        unimplemented!();
         Ok(())
     }
 
@@ -71,7 +88,6 @@ impl SimpleTransaction for DBTransaction<TxType> {
         K: Into<Key> + Send,
         A: Into<Arg> + Send,
     {
-        info!("POSTGRES [START]: Batch inserting...");
         if self.closed() {
             return Err(DatabaseError::TxFinished);
         }
@@ -81,46 +97,50 @@ impl SimpleTransaction for DBTransaction<TxType> {
         }
 
         let mut guarded_tx = self.tx.lock().await;
-        let tx = guarded_tx.as_mut().unwrap();
 
         unimplemented!();
 
         Ok(())
     }
 
-    async fn get_filtered<K, A, V>(
+    async fn get<K, A, V>(
         &self,
         key: K,
         args: A,
-        keywords: &[&'static str],
+        keywords: KeywordBucket,
     ) -> Result<Vec<V>, DatabaseError>
     where
         A: Into<Arg> + Send,
         K: Into<Key> + Send,
         V: FromPostgresRow,
     {
-        info!("POSTGRES [START]: Querying...");
         if self.closed() {
             return Err(DatabaseError::TxFinished);
         }
 
-        unimplemented!();
-        // Ok(result)
+        Ok(vec![])
     }
 }
 
-fn to_pg_prams(params: Vec<SuperValue>) -> Vec<Box<(dyn ToSql + Send + Sync + 'static)>> {
-    let mut pg_params: Vec<Box<(dyn ToSql + Send + Sync + 'static)>> = vec![];
+type RedisReturnType = Box<String>;
+fn to_redis_params(params: Vec<SuperValue>) -> Vec<RedisReturnType> {
+    let mut result: Vec<RedisReturnType> = vec![];
+
     for item in params {
-        match item {
-            SuperValue::String(v) => pg_params.push(Box::new(v)),
-            SuperValue::Integer(v) => pg_params.push(Box::new(v)),
-            SuperValue::BigInteger(v) => pg_params.push(Box::new(v)),
-            SuperValue::SmallInteger(v) => pg_params.push(Box::new(v)),
-            SuperValue::Char(v) => pg_params.push(Box::new(v)),
-            _ => unimplemented!(),
-        };
+        macro_rules! param_convert {
+            ($($SuperValueType: ident),*) => {
+                match item {
+                    $(
+                        SuperValue::$SuperValueType(v) => result.push(
+                            Box::new(v.to_string())
+                        ),
+                    )*
+                    _ => unimplemented!()
+                }
+            };
+        }
+        param_convert!(String, Integer, BigInteger, SmallInteger, Char);
     }
 
-    pg_params
+    result
 }

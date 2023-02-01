@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use futures::lock::Mutex;
 use std::sync::Arc;
 
-use super::FromPostgresRow;
+use super::{FromPostgresRow, KeywordBucket};
 
 pub struct DBTransaction<T>
 where
@@ -52,7 +52,12 @@ pub trait SimpleTransaction {
     // async fn get<K: Into<Key> + Send>(&self, cf: CF, key: K) -> Result<Option<Val>, DatabaseError>;
 
     /// Insert or update a key in the database
-    async fn set<K, A>(&mut self, key: K, args: A) -> Result<(), DatabaseError>
+    async fn set<K, A>(
+        &mut self,
+        key: K,
+        args: A,
+        keywords: KeywordBucket,
+    ) -> Result<(), DatabaseError>
     where
         K: Into<Key> + Send,
         A: Into<Arg> + Send;
@@ -62,11 +67,11 @@ pub trait SimpleTransaction {
         K: Into<Key> + Send,
         A: Into<Arg> + Send;
 
-    async fn get_filtered<K, A, V>(
+    async fn get<K, A, V>(
         &self,
         key: K,
         args: A,
-        keywords: &[&'static str],
+        keywords: KeywordBucket,
     ) -> Result<Vec<V>, DatabaseError>
     where
         A: Into<Arg> + Send,

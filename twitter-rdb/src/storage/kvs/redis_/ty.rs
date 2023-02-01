@@ -1,9 +1,9 @@
 extern crate redis;
 
-use redis::{Client, Connection};
+use redis::{aio::Connection, Client};
 
 use crate::structures::DBTransaction;
 
-pub type TxType = &'static mut Connection;
+pub type TxType = Connection;
 pub type DBType = Box<Client>;
 pub type RedisTransaction = DBTransaction<TxType>;

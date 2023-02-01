@@ -2,7 +2,7 @@ macro_rules! impl_global_transaction {
 		($($x: ident; feat $feat: expr), *) => {
 			use crate::errors::DatabaseError;
 			use crate::misc::{ Key, Arg };
-			use crate::structures::FromPostgresRow;
+			use crate::structures::{FromPostgresRow, KeywordBucket};
 
 			#[async_trait::async_trait(?Send)]
 			impl crate::structures::SimpleTransaction for Transaction {
@@ -45,7 +45,12 @@ macro_rules! impl_global_transaction {
 					}
 				}
 
-				async fn set<K, A>(&mut self, key: K, val: A) -> Result<(), DatabaseError>
+				async fn set<K, A>(
+					&mut self,
+					key: K,
+					val: A,
+					keywords: KeywordBucket
+				) -> Result<(), DatabaseError>
 				where
 					K: Into<Key> + Send,
 					A: Into<Arg> + Send
@@ -56,7 +61,7 @@ macro_rules! impl_global_transaction {
 							Transaction {
 								inner: Inner::$x(ds),
 								..
-							} => ds.set(key, val).await,
+							} => ds.set(key, val, keywords).await,
 						)*
 					}
 				}
@@ -77,10 +82,10 @@ macro_rules! impl_global_transaction {
 					}
 				}
 
-				async fn get_filtered<K, A, V>(
+				async fn get<K, A, V>(
 					&self, key: K,
 					args: A,
-					keywords: &[&'static str]
+					keywords: KeywordBucket
 				) -> Result<Vec<V>, DatabaseError>
 				where
 								A: Into<Arg> + Send,
@@ -93,7 +98,7 @@ macro_rules! impl_global_transaction {
 							Transaction {
 								inner: Inner::$x(ds),
 								..
-							} => ds.get_filtered(key, args, keywords).await,
+							} => ds.get(key, args, keywords).await,
 						)*
 				}
 			}

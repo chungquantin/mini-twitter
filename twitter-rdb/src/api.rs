@@ -64,46 +64,4 @@ impl TwitterApi {
         let tweets = self.repo.get_timeline(tx, user_id).await?;
         Ok(tweets)
     }
-
-    pub async fn get_followers(
-        &mut self,
-        user_id: Identifier,
-        limit: Option<i64>,
-        offset: Option<i64>,
-    ) -> Result<Vec<Follow>, DatabaseError> {
-        let tx = self.repo.tx().await;
-        let tweets = self
-            .repo
-            .get_user_followers(tx, user_id, limit, offset)
-            .await?;
-        Ok(tweets)
-    }
-
-    pub async fn get_followees(
-        &mut self,
-        user_id: Identifier,
-        limit: Option<i64>,
-        offset: Option<i64>,
-    ) -> Result<Vec<Follow>, DatabaseError> {
-        let tx = self.repo.tx().await;
-        let tweets = self
-            .repo
-            .get_user_followees(tx, user_id, limit, offset)
-            .await?;
-        Ok(tweets)
-    }
-
-    pub async fn get_most_recent_tweets(
-        &mut self,
-        user_id: Identifier,
-        limit: Option<i64>,
-        offset: Option<i64>,
-    ) -> Result<Vec<Tweet>, DatabaseError> {
-        let tx = &mut self.repo.tx().await;
-        let tweets = self
-            .repo
-            .get_most_recent_tweets(tx, user_id, limit, offset)
-            .await?;
-        Ok(tweets)
-    }
 }

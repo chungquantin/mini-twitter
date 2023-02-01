@@ -1,7 +1,8 @@
 use crate::{
     errors::DatabaseError,
+    keywords,
     misc::Identifier,
-    models::{Follow, Tweet},
+    models::Tweet,
     storage::{Database, DatabaseRef, Transaction},
     structures::{Document, SimpleTransaction, SuperValue},
 };
@@ -41,13 +42,13 @@ impl TwitterRepository {
         tx.set(
             Document::Tweets,
             vec![SuperValue::Integer(user_id), SuperValue::String(text)],
+            keywords!(),
         )
         .await?;
 
         Ok(())
     }
 
-    #[allow(dead_code)]
     pub async fn batch_create_tweets(
         &mut self,
         tx: &mut Transaction,
@@ -66,65 +67,6 @@ impl TwitterRepository {
         Ok(())
     }
 
-    #[allow(dead_code)]
-    pub async fn get_user_tweets(
-        &mut self,
-        tx: &Transaction,
-        user_id: Identifier,
-        limit: Option<i64>,
-        offset: Option<i64>,
-    ) -> Result<Vec<Tweet>, DatabaseError> {
-        let tweets: Vec<Tweet> = tx
-            .get_filtered(
-                Document::Tweets,
-                vec![
-                    SuperValue::Integer(user_id),
-                    match limit {
-                        Some(l) => SuperValue::BigInteger(l),
-                        None => SuperValue::BigInteger(i64::MAX),
-                    },
-                    match offset {
-                        Some(o) => SuperValue::BigInteger(o),
-                        None => SuperValue::BigInteger(0),
-                    },
-                ],
-                &["user_tweets"],
-            )
-            .await?;
-
-        Ok(tweets)
-    }
-
-    #[allow(dead_code)]
-    pub async fn get_most_recent_tweets(
-        &mut self,
-        tx: &Transaction,
-        user_id: Identifier,
-        limit: Option<i64>,
-        offset: Option<i64>,
-    ) -> Result<Vec<Tweet>, DatabaseError> {
-        let tweets: Vec<Tweet> = tx
-            .get_filtered(
-                Document::Tweets,
-                vec![
-                    SuperValue::Integer(user_id),
-                    match limit {
-                        Some(l) => SuperValue::BigInteger(l),
-                        None => SuperValue::BigInteger(i64::MAX),
-                    },
-                    match offset {
-                        Some(o) => SuperValue::BigInteger(o),
-                        None => SuperValue::BigInteger(0),
-                    },
-                ],
-                &["user_recent_tweets"],
-            )
-            .await?;
-
-        Ok(tweets)
-    }
-
-    #[allow(dead_code)]
     pub async fn create_follow(
         &mut self,
         tx: &mut Transaction,
@@ -134,85 +76,11 @@ impl TwitterRepository {
         tx.set(
             Document::Follows,
             vec![SuperValue::Integer(from), SuperValue::Integer(to)],
+            keywords!(),
         )
         .await?;
 
         Ok(())
-    }
-
-    #[allow(dead_code)]
-    pub async fn get_user_followers(
-        &mut self,
-        tx: Transaction,
-        user_id: Identifier,
-        limit: Option<i64>,
-        offset: Option<i64>,
-    ) -> Result<Vec<Follow>, DatabaseError> {
-        let followers: Vec<Follow> = tx
-            .get_filtered(
-                Document::Follows,
-                vec![
-                    SuperValue::Integer(user_id),
-                    match limit {
-                        Some(l) => SuperValue::BigInteger(l),
-                        None => SuperValue::BigInteger(i64::MAX),
-                    },
-                    match offset {
-                        Some(o) => SuperValue::BigInteger(o),
-                        None => SuperValue::BigInteger(0),
-                    },
-                ],
-                &["user_followers"],
-            )
-            .await?;
-
-        Ok(followers)
-    }
-
-    #[allow(dead_code)]
-    pub async fn get_user_followees(
-        &mut self,
-        tx: Transaction,
-        user_id: Identifier,
-        limit: Option<i64>,
-        offset: Option<i64>,
-    ) -> Result<Vec<Follow>, DatabaseError> {
-        let followers: Vec<Follow> = tx
-            .get_filtered(
-                Document::Follows,
-                vec![
-                    SuperValue::Integer(user_id),
-                    match limit {
-                        Some(l) => SuperValue::BigInteger(l),
-                        None => SuperValue::BigInteger(i64::MAX),
-                    },
-                    match offset {
-                        Some(o) => SuperValue::BigInteger(o),
-                        None => SuperValue::BigInteger(0),
-                    },
-                ],
-                &["user_followees"],
-            )
-            .await?;
-
-        Ok(followers)
-    }
-
-    #[allow(dead_code)]
-    pub async fn get_random_followee(
-        &mut self,
-        tx: Transaction,
-        user_id: Identifier,
-    ) -> Result<Option<Follow>, DatabaseError> {
-        let followers: Vec<Follow> = tx
-            .get_filtered(
-                Document::Follows,
-                vec![SuperValue::Integer(user_id)],
-                &["user_random_followee"],
-            )
-            .await?;
-
-        Ok(followers.first().cloned())
     }
 
     pub async fn get_timeline(
@@ -221,14 +89,14 @@ impl TwitterRepository {
         user_id: Identifier,
     ) -> Result<Vec<Tweet>, DatabaseError> {
         let tweets: Vec<Tweet> = tx
-            .get_filtered(
+            .get(
                 Document::Tweets,
                 vec![
                     SuperValue::Integer(user_id),
                     SuperValue::BigInteger(10),
                     SuperValue::BigInteger(0),
                 ],
-                &["user_timeline"],
+                keywords!("select_script" => String::from("user_timeline")),
             )
             .await?;
 

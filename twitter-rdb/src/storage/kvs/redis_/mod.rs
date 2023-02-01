@@ -10,7 +10,7 @@ use crate::{
     errors::DatabaseError,
     structures::{DBTransaction, DatabaseAdapter, DatabaseType, ImplDatabase},
 };
-use redis::{Client, Connection};
+use redis::Client;
 
 pub struct RedisAdapter(DatabaseAdapter<DBType>);
 
@@ -40,12 +40,16 @@ impl ImplDatabase for RedisAdapter {
     }
 
     async fn transaction(&mut self, w: bool) -> Result<RedisTransaction, DatabaseError> {
-        let connection = &mut self.get_mut_inner().db_instance.get_connection()?;
-        let static_connection = unsafe { extend_conn_lifetime(connection) };
-        Ok(DBTransaction::<TxType>::new(static_connection, w, false).unwrap())
+        let mut connection = self
+            .get_mut_inner()
+            .db_instance
+            .get_async_connection()
+            .await?;
+        // Switch Redis to MULTI mode for ACID transaction
+        let status: String = redis::cmd("MULTI").query_async(&mut connection).await?;
+        if &status != "OK" {
+            return Err(DatabaseError::TxFailure);
+        }
+        Ok(DBTransaction::<TxType>::new(connection, w, false).unwrap())
     }
-}
-
-unsafe fn extend_conn_lifetime(conn: &mut Connection) -> &'static mut Connection {
-    std::mem::transmute::<&mut Connection, &'static mut Connection>(conn)
 }

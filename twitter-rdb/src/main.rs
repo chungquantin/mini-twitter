@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-
 use crate::{models::Follow, utils::load_from_csv};
 use api::TwitterApi;
 use colored::Colorize;
+use conn::DATABASE_CONNECTIONS;
 use errors::DatabaseError;
 use indicatif::ProgressBar;
 use models::Tweet;
@@ -11,6 +10,7 @@ use storage::{Database, DatabaseRef, DatabaseVariant};
 use utils::{start_benchmarking, stop_benchmarking};
 
 mod api;
+mod conn;
 mod constants;
 mod errors;
 mod structures;
@@ -93,7 +93,10 @@ async fn benchmark_post_tweets_single_insert(
         pb.inc(1);
         twitter_api.post_tweet(tweet, false).await?;
     }
-    let rps = loaded_tweets.len() as u64 / t.elapsed().as_secs();
+    let requests = loaded_tweets.len() as u64;
+    let time = t.elapsed().as_secs();
+    let div = time.checked_div(requests).unwrap();
+    let rps = if div == 0 { requests } else { div };
     println!("==> Request per second: {}", format!("{}", rps).blue());
     stop_benchmarking(t);
     Ok(())
@@ -121,7 +124,10 @@ async fn benchmark_post_tweets_batch_insert(
             twitter_api.batch_post_tweets(batch.to_vec(), true).await?;
         }
     }
-    let rps = loaded_tweets.len() as u64 / t.elapsed().as_secs();
+    let requests = loaded_tweets.len() as u64;
+    let time = t.elapsed().as_secs();
+    let div = time.checked_div(requests).unwrap();
+    let rps = if div == 0 { requests } else { div };
     println!("==> Request per second: {}", format!("{}", rps).blue());
     stop_benchmarking(t);
 
@@ -129,14 +135,7 @@ async fn benchmark_post_tweets_batch_insert(
 }
 
 fn get_connection_str(variant: DatabaseVariant) -> &'static str {
-    let connections: HashMap<DatabaseVariant, &'static str> = HashMap::from([
-        (
-            DatabaseVariant::Postgres,
-            "user=postgres host=localhost port=5433",
-        ),
-        (DatabaseVariant::Redis, "redis://127.0.0.1/"),
-    ]);
-    connections.get(&variant).unwrap()
+    DATABASE_CONNECTIONS.get(&variant).unwrap()
 }
 
 #[tokio::main]

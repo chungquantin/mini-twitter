@@ -60,34 +60,14 @@ pub static GLOBAL_SQL_SCRIPTS: Lazy<HashMap<String, String>> = Lazy::new(|| {
         load_script("batch_insert_tweets"),
     );
     scripts.insert(
-        scriptify(Document::Tweets, SQLEvent::Select("user_tweets")),
-        load_script("select_user_tweets"),
-    );
-    scripts.insert(
-        scriptify(Document::Tweets, SQLEvent::Select("user_recent_tweets")),
-        load_script("select_user_recent_tweets"),
-    );
-    scripts.insert(
         scriptify(Document::Tweets, SQLEvent::Select("user_timeline")),
         load_script("select_user_timeline"),
     );
 
     // Follows script
     scripts.insert(
-        scriptify(Document::Follows, SQLEvent::Select("user_random_followee")),
-        load_script("select_random_followee"),
-    );
-    scripts.insert(
         scriptify(Document::Follows, SQLEvent::Insert),
         load_script("insert_follow"),
-    );
-    scripts.insert(
-        scriptify(Document::Follows, SQLEvent::Select("user_followers")),
-        load_script("select_user_followers"),
-    );
-    scripts.insert(
-        scriptify(Document::Follows, SQLEvent::Select("user_followees")),
-        load_script("select_user_followees"),
     );
     scripts
 });
