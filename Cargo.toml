@@ -1,2 +1,2 @@
 [workspace]
-members = ["twitter", "mac"]
+members = ["twitter"]

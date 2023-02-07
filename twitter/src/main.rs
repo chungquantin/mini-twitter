@@ -51,6 +51,7 @@ fn benchmark_load_tweets_from_csv() -> Vec<Tweet> {
 
 async fn benchmark_load_follows_from_csv(
     twitter_api: &mut TwitterApi,
+    save: bool,
 ) -> Result<Vec<i32>, DatabaseError> {
     let mut followers = Vec::<i32>::default();
     let mut unique_map = std::collections::HashMap::<i32, bool>::default();
@@ -80,7 +81,7 @@ async fn benchmark_load_follows_from_csv(
         follows.push(follow);
     }
 
-    twitter_api.batch_create_follows(follows, true).await?;
+    twitter_api.batch_create_follows(follows, save).await?;
     stop_benchmarking(t);
     Ok(followers)
 }
@@ -168,7 +169,7 @@ async fn main() -> Result<(), DatabaseError> {
     // per second. Can MySQL keep up?)  Insert tweets as you read them from the file. Batch no
     // more than 5 tweets at a time into the insert.
     let loaded_tweets = benchmark_load_tweets_from_csv();
-    let followers = benchmark_load_follows_from_csv(&mut twitter_api).await?;
+    let followers = benchmark_load_follows_from_csv(&mut twitter_api, true).await?;
     //benchmark_post_tweets_single_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
     benchmark_post_tweets_batch_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
 
@@ -183,7 +184,7 @@ async fn main() -> Result<(), DatabaseError> {
     let t = start_benchmarking("USER TIMELINE", "Return that random user’s home timeline");
     let mut total_timelines_fetched = 0;
     let tx = twitter_api.repo.tx().await;
-    while t.elapsed().as_secs() < 60 {
+    while t.elapsed().as_secs() < 120 {
         // Repeatedly select random user from list of followers
         let user_id = followers.choose(&mut rand::thread_rng()).unwrap().clone();
         #[allow(unused)]
