@@ -154,7 +154,7 @@ impl SimpleTransaction for DBTransaction<TxType> {
             .map(|x| -> PostgresArgType { x.as_ref() })
             .collect::<Vec<PostgresArgType>>();
 
-        let script = sss(keywords.get("select_script").unwrap());
+        let script = sss(keywords.get("tag").unwrap());
         let rows = tx
             .query(
                 &get_sql_script(key.clone(), SQLEvent::Select(script)),

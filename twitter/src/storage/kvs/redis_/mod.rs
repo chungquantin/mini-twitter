@@ -10,7 +10,7 @@ use crate::{
     errors::DatabaseError,
     structures::{DBTransaction, DatabaseAdapter, DatabaseType, ImplDatabase},
 };
-use redis::Client;
+use redis::{Client, ConnectionLike};
 
 pub struct RedisAdapter(DatabaseAdapter<DBType>);
 
@@ -19,9 +19,13 @@ impl RedisAdapter {
 
     pub async fn connect(
         connection_str: &str,
-        _auto_reset: bool,
+        auto_reset: bool,
     ) -> Result<RedisAdapter, DatabaseError> {
-        let client = Client::open(connection_str)?;
+        let mut client = Client::open(connection_str)?;
+
+        if auto_reset && client.is_open() {
+            client.req_command(&redis::cmd("FLUSHALL"))?;
+        }
 
         Ok(RedisAdapter(DatabaseAdapter::<DBType>::new(
             connection_str.to_string(),
@@ -40,16 +44,12 @@ impl ImplDatabase for RedisAdapter {
     }
 
     async fn transaction(&mut self, w: bool) -> Result<RedisTransaction, DatabaseError> {
-        let mut connection = self
+        let connection = self
             .get_mut_inner()
             .db_instance
             .get_async_connection()
             .await?;
-        // Switch Redis to MULTI mode for ACID transaction
-        let status: String = redis::cmd("MULTI").query_async(&mut connection).await?;
-        if &status != "OK" {
-            return Err(DatabaseError::TxFailure);
-        }
+
         Ok(DBTransaction::<TxType>::new(connection, w, false).unwrap())
     }
 }

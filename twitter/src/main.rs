@@ -1,4 +1,4 @@
-use crate::{models::Follow, utils::load_from_csv};
+use crate::{models::Follow, structures::SimpleTransaction, utils::load_from_csv};
 use api::TwitterApi;
 use colored::Colorize;
 use conn::DATABASE_CONNECTIONS;
@@ -22,7 +22,10 @@ mod repo;
 mod storage;
 mod utils;
 
-static GLOBAL_USE_SAMPLE: bool = true;
+/* Use test sample CSV or real data CSV */
+static GLOBAL_USE_SAMPLE: bool = false;
+/* Set the strategy number used for testing Redis */
+pub static REDIS_STRATEGY: i32 = 2;
 
 fn benchmark_load_tweets_from_csv() -> Vec<Tweet> {
     let t = start_benchmarking("PREPARATION", "Load tweets from CSV file");
@@ -89,14 +92,19 @@ async fn benchmark_post_tweets_single_insert(
 ) -> Result<(), DatabaseError> {
     let t = start_benchmarking("POST TWEETS", "Using single insert");
     let pb = ProgressBar::new(loaded_tweets.len().try_into().unwrap());
+    let tx = &mut twitter_api.repo.mut_tx().await;
     for tweet in loaded_tweets.to_vec() {
         pb.inc(1);
-        twitter_api.post_tweet(tweet, false).await?;
+        twitter_api.post_tweet(tweet, tx).await?;
     }
+    // tx.commit().await?;
     let requests = loaded_tweets.len() as u64;
     let time = t.elapsed().as_secs();
-    let div = time.checked_div(requests).unwrap();
-    let rps = if div == 0 { requests } else { div };
+    let div = requests.checked_div(time);
+    let rps = match div {
+        Some(d) => d,
+        None => requests,
+    };
     println!("==> Request per second: {}", format!("{}", rps).blue());
     stop_benchmarking(t);
     Ok(())
@@ -110,6 +118,7 @@ async fn benchmark_post_tweets_batch_insert(
     let batch_size: usize = 5;
     let mut cur = 0;
     let pb = ProgressBar::new(loaded_tweets.len().try_into().unwrap());
+    let tx = &mut twitter_api.repo.mut_tx().await;
     while cur <= loaded_tweets.len() {
         pb.inc(batch_size.try_into().unwrap());
         let end = std::cmp::min(cur + batch_size, loaded_tweets.len());
@@ -118,16 +127,20 @@ async fn benchmark_post_tweets_batch_insert(
         cur = cur + batch_size;
         if batch.len() < batch_size {
             for tweet in batch.to_vec() {
-                twitter_api.post_tweet(tweet, true).await?;
+                twitter_api.post_tweet(tweet, tx).await?;
             }
         } else {
-            twitter_api.batch_post_tweets(batch.to_vec(), true).await?;
+            twitter_api.batch_post_tweets(batch.to_vec(), tx).await?;
         }
     }
+    tx.commit().await?;
     let requests = loaded_tweets.len() as u64;
     let time = t.elapsed().as_secs();
-    let div = time.checked_div(requests).unwrap();
-    let rps = if div == 0 { requests } else { div };
+    let div = requests.checked_div(time);
+    let rps = match div {
+        Some(d) => d,
+        None => requests,
+    };
     println!("==> Request per second: {}", format!("{}", rps).blue());
     stop_benchmarking(t);
 
@@ -141,7 +154,8 @@ fn get_connection_str(variant: DatabaseVariant) -> &'static str {
 #[tokio::main]
 async fn main() -> Result<(), DatabaseError> {
     let variant = DatabaseVariant::Redis;
-    let database = Database::connect(variant.clone(), get_connection_str(variant), false).await;
+    let conn = get_connection_str(variant.clone());
+    let database = Database::connect(variant, conn, true).await;
     let database_ref = DatabaseRef::new(database);
     let mut twitter_api = TwitterApi::new(database_ref);
 
@@ -155,7 +169,7 @@ async fn main() -> Result<(), DatabaseError> {
     // more than 5 tweets at a time into the insert.
     let loaded_tweets = benchmark_load_tweets_from_csv();
     let followers = benchmark_load_follows_from_csv(&mut twitter_api).await?;
-    benchmark_post_tweets_single_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
+    //benchmark_post_tweets_single_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
     benchmark_post_tweets_batch_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
 
     // Second Program:
@@ -165,14 +179,15 @@ async fn main() -> Result<(), DatabaseError> {
     // posted by X, Y, or Z. This process simulates users opening the twitter app on their
     // smartphone and refreshing the home timeline to see new posts. How many home timelines
     // can be retrieved per second? Twitter users worldwide collectively refresh their home
-    // timeline 200-300 thousand times per second. Can your program keep up?
+    // timeline 200-300 thousand times per second. Can your program keep up
     let t = start_benchmarking("USER TIMELINE", "Return that random user’s home timeline");
     let mut total_timelines_fetched = 0;
-    while t.elapsed().as_secs() < 100 {
+    let tx = twitter_api.repo.tx().await;
+    while t.elapsed().as_secs() < 60 {
         // Repeatedly select random user from list of followers
         let user_id = followers.choose(&mut rand::thread_rng()).unwrap().clone();
         #[allow(unused)]
-        let tweets = twitter_api.get_timeline(user_id).await;
+        let tweets = twitter_api.get_timeline(user_id, &tx).await;
         // println!("tweets: {:?}", tweets); // Uncomment this line to view the fetched tweets
         total_timelines_fetched += 1;
     }

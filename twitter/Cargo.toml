@@ -1,5 +1,5 @@
 [package]
-name = "twitter-rdb"
+name = "twitter"
 version = "0.1.0"
 edition = "2021"
 
@@ -14,6 +14,7 @@ kvs_redis = ["redis"]
 tokio = { version = "1.24.1", features = ["full"] }
 tokio-postgres = { version = "0.7.7", optional = true }
 redis = { version = "0.22.3", optional = true, features = ["tokio-comp"] }
+mac = { path = "../mac" }
 anyhow = "1.0.68"
 once_cell = "1.17.0"
 thiserror = "1.0.38"
@@ -27,3 +28,11 @@ colored = "2.0.0"
 log = "0.4.17"
 indicatif = "0.17.3"
 rand = "0.8.5"
+chrono = "0.4.23"
+
+[dependencies.uuid]
+version = "1.3.0"
+features = [
+ "v4",       # Lets you generate random UUIDs
+ "fast-rng", # Use a faster (but still sufficiently random) RNG
+]

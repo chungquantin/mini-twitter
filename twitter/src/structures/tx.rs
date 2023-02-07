@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use futures::lock::Mutex;
 use std::sync::Arc;
 
-use super::{FromPostgresRow, KeywordBucket};
+use super::{FromPostgresRow, FromRedisValue, KeywordBucket};
 
 pub struct DBTransaction<T>
 where
@@ -76,7 +76,7 @@ pub trait SimpleTransaction {
     where
         A: Into<Arg> + Send,
         K: Into<Key> + Send,
-        V: FromPostgresRow;
+        V: FromPostgresRow + FromRedisValue;
 
     // /// Insert a key if it doesn't exist in the database
     // async fn put<K: Into<Key> + Send, V: Into<Key> + Send>(

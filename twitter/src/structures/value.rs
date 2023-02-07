@@ -41,3 +41,7 @@ pub trait BorrowFromSuperValue: Sized {
 pub trait FromPostgresRow {
     fn from_pg_row(r: Row) -> Self;
 }
+
+pub trait FromRedisValue {
+    fn from_redis_value(v: String) -> Self;
+}

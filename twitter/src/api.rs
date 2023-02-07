@@ -3,12 +3,12 @@ use crate::{
     misc::Identifier,
     models::{Follow, Tweet},
     repo::TwitterRepository,
-    storage::DatabaseRef,
+    storage::{DatabaseRef, Transaction},
     structures::SimpleTransaction,
 };
 
 pub struct TwitterApi {
-    repo: TwitterRepository,
+    pub repo: TwitterRepository,
 }
 
 impl TwitterApi {
@@ -36,31 +36,29 @@ impl TwitterApi {
         Ok(())
     }
 
-    pub async fn post_tweet(&mut self, t: Tweet, save: bool) -> Result<(), DatabaseError> {
-        let tx = &mut self.repo.mut_tx().await;
+    pub async fn post_tweet(
+        &mut self,
+        t: Tweet,
+        tx: &mut Transaction,
+    ) -> Result<(), DatabaseError> {
         self.repo.create_tweet(tx, t.author(), t.tweet_text).await?;
-        if save {
-            tx.commit().await?;
-        }
         Ok(())
     }
 
-    #[allow(dead_code)]
     pub async fn batch_post_tweets(
         &mut self,
         t: Vec<Tweet>,
-        save: bool,
+        tx: &mut Transaction,
     ) -> Result<(), DatabaseError> {
-        let tx = &mut self.repo.mut_tx().await;
         self.repo.batch_create_tweets(tx, t).await?;
-        if save {
-            tx.commit().await?;
-        }
         Ok(())
     }
 
-    pub async fn get_timeline(&mut self, user_id: Identifier) -> Result<Vec<Tweet>, DatabaseError> {
-        let tx = self.repo.tx().await;
+    pub async fn get_timeline(
+        &mut self,
+        user_id: Identifier,
+        tx: &Transaction,
+    ) -> Result<Vec<Tweet>, DatabaseError> {
         let tweets = self.repo.get_timeline(tx, user_id).await?;
         Ok(tweets)
     }

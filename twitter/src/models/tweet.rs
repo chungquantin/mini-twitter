@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 
 use crate::misc::{Identifier, UnixTimestamp};
-use crate::structures::FromPostgresRow;
+use crate::structures::{FromPostgresRow, FromRedisValue};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -19,6 +19,15 @@ impl Default for Tweet {
             tweet_id: Default::default(),
             user_id: Default::default(),
             tweet_text: Default::default(),
+        }
+    }
+}
+
+impl FromRedisValue for Tweet {
+    fn from_redis_value(v: String) -> Self {
+        Tweet {
+            tweet_text: v,
+            ..Default::default()
         }
     }
 }

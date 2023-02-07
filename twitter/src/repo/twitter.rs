@@ -85,7 +85,7 @@ impl TwitterRepository {
 
     pub async fn get_timeline(
         &mut self,
-        tx: Transaction,
+        tx: &Transaction,
         user_id: Identifier,
     ) -> Result<Vec<Tweet>, DatabaseError> {
         let tweets: Vec<Tweet> = tx
@@ -96,7 +96,7 @@ impl TwitterRepository {
                     SuperValue::BigInteger(10),
                     SuperValue::BigInteger(0),
                 ],
-                keywords!("select_script" => String::from("user_timeline")),
+                keywords!("tag" => String::from("user_timeline")),
             )
             .await?;
 

@@ -2,7 +2,7 @@ macro_rules! impl_global_transaction {
 		($($x: ident; feat $feat: expr), *) => {
 			use crate::errors::DatabaseError;
 			use crate::misc::{ Key, Arg };
-			use crate::structures::{FromPostgresRow, KeywordBucket};
+			use crate::structures::{FromPostgresRow, KeywordBucket, FromRedisValue};
 
 			#[async_trait::async_trait(?Send)]
 			impl crate::structures::SimpleTransaction for Transaction {
@@ -90,7 +90,7 @@ macro_rules! impl_global_transaction {
 				where
 								A: Into<Arg> + Send,
 								K: Into<Key> + Send,
-								V: FromPostgresRow
+								V: FromPostgresRow + FromRedisValue
 				{
 					match self {
 						$(
