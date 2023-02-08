@@ -22,7 +22,7 @@ There are two databases adapted into the system to benchmark the performance of 
 - Relational database (PostgreSQL): `DatabaseVariant::Postgres`
 - In-memory database (Redis): `DatabaseVariant::Redis`
 ## Benchmarking
-The result returned from benchmarking shows that (RPS stands for Request per Second):
+The result returned from benchmarking 1,000,000 follows and 1,000,000 tweets shows that (RPS stands for Request per Second):
 | Database      | Post tweets (RPS) | Retrieve timeline (RPS)|
 | ----------- | ----------- | -------- |
 | Redis (Strategy 1)      |   20408.0     | 1838.0 |
