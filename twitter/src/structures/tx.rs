@@ -34,7 +34,7 @@ where
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 pub trait SimpleTransaction {
     // Check if closed
     fn closed(&self) -> bool;
@@ -76,7 +76,7 @@ pub trait SimpleTransaction {
     where
         A: Into<Arg> + Send,
         K: Into<Key> + Send,
-        V: FromPostgresRow + FromRedisValue;
+        V: FromPostgresRow + FromRedisValue + Send;
 
     // /// Insert a key if it doesn't exist in the database
     // async fn put<K: Into<Key> + Send, V: Into<Key> + Send>(

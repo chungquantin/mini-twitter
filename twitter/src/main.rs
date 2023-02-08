@@ -24,6 +24,7 @@ mod utils;
 
 /* Use test sample CSV or real data CSV */
 static GLOBAL_USE_SAMPLE: bool = false;
+static GLOBAL_WRITE: bool = true;
 /* Set the strategy number used for testing Redis */
 pub static REDIS_STRATEGY: i32 = 2;
 
@@ -156,7 +157,7 @@ fn get_connection_str(variant: DatabaseVariant) -> &'static str {
 async fn main() -> Result<(), DatabaseError> {
     let variant = DatabaseVariant::Redis;
     let conn = get_connection_str(variant.clone());
-    let database = Database::connect(variant, conn, true).await;
+    let database = Database::connect(variant, conn, GLOBAL_WRITE).await;
     let database_ref = DatabaseRef::new(database);
     let mut twitter_api = TwitterApi::new(database_ref);
 
@@ -169,9 +170,11 @@ async fn main() -> Result<(), DatabaseError> {
     // per second. Can MySQL keep up?)  Insert tweets as you read them from the file. Batch no
     // more than 5 tweets at a time into the insert.
     let loaded_tweets = benchmark_load_tweets_from_csv();
-    let followers = benchmark_load_follows_from_csv(&mut twitter_api, true).await?;
-    //benchmark_post_tweets_single_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
-    benchmark_post_tweets_batch_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
+    let followers = benchmark_load_follows_from_csv(&mut twitter_api, GLOBAL_WRITE).await?;
+    if GLOBAL_WRITE {
+        // benchmark_post_tweets_single_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
+        benchmark_post_tweets_batch_insert(&mut twitter_api, loaded_tweets.to_vec()).await?;
+    }
 
     // Second Program:
     // Write a second program that repeatedly picks a random user and returns that user’s home
@@ -181,14 +184,13 @@ async fn main() -> Result<(), DatabaseError> {
     // smartphone and refreshing the home timeline to see new posts. How many home timelines
     // can be retrieved per second? Twitter users worldwide collectively refresh their home
     // timeline 200-300 thousand times per second. Can your program keep up
-    let t = start_benchmarking("USER TIMELINE", "Return that random user’s home timeline");
-    let mut total_timelines_fetched = 0;
     let tx = twitter_api.repo.tx().await;
+    let mut total_timelines_fetched = 0;
+    let t = start_benchmarking("USER TIMELINE", "Return that random user’s home timeline");
     while t.elapsed().as_secs() < 120 {
         // Repeatedly select random user from list of followers
         let user_id = followers.choose(&mut rand::thread_rng()).unwrap().clone();
-        #[allow(unused)]
-        let tweets = twitter_api.get_timeline(user_id, &tx).await;
+        twitter_api.get_timeline(user_id, &tx).await?;
         // println!("tweets: {:?}", tweets); // Uncomment this line to view the fetched tweets
         total_timelines_fetched += 1;
     }

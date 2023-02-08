@@ -10,12 +10,13 @@ use crate::{
 };
 use async_trait::async_trait;
 use chrono::{self, Utc};
+use rayon::prelude::*;
 use redis::{aio::Connection, AsyncCommands};
 use uuid::Uuid;
 
 use super::ty::TxType;
 
-#[async_trait(?Send)]
+#[async_trait]
 impl SimpleTransaction for DBTransaction<TxType> {
     fn closed(&self) -> bool {
         self.ok
@@ -176,7 +177,6 @@ impl Document {
             Document::Tweets => {
                 if tag == "user_timeline" {
                     if REDIS_STRATEGY == 1 {
-                        println!("Running strategy 1...");
                         let id = format!("FOLLOWS:{}", &args[0]);
                         let followees: Vec<String> = conn.lrange(id, 0, -1).await?;
                         let mut tweets_ids: Vec<String> = vec![];
@@ -189,11 +189,14 @@ impl Document {
                                 tweets_ids.push(tweet);
                             }
                         }
-                        tweets_ids.sort_by(|a, b| {
-                            let slice_a = &a[a.len() - 10..a.len()];
-                            let slice_b = &b[b.len() - 10..b.len()];
-                            slice_a.cmp(&slice_b)
-                        });
+
+                        // Parallel mapping tweet timestamp into integer
+                        let mut timestamps: Vec<_> = tweets_ids
+                            .par_iter()
+                            .map(|k| k.clone()[k.len() - 10..k.len()].parse::<i64>().unwrap())
+                            .collect();
+                        // Can do parallel sorting (thread safe)
+                        timestamps.par_sort();
 
                         let mut result = vec![];
                         for tweet in tweets_ids {
@@ -203,12 +206,11 @@ impl Document {
                         return Ok(result);
                     } else if REDIS_STRATEGY == 2 {
                         let timeline = format!("USER_TIMELINE:{}", &args[0]);
-                        let tweets: Vec<String> = conn.zrange(timeline, 0, 10).await?;
+                        let tweets: Vec<String> = conn.lrange(timeline, 0, 10).await?;
                         let mut result = vec![];
                         for tweet in tweets {
                             result.push(T::from_redis_value(tweet));
                         }
-
                         return Ok(result);
                     }
                 }
@@ -227,7 +229,8 @@ impl Document {
     ) -> Result<(), DatabaseError> {
         match self {
             Document::Tweets => {
-                // Redis command: HSET Tweets:author_id (id uuidV4) (tweet_ts timestamp) (tweet_text msg) (author id)
+                /* Redis command: HSET Tweets:author_id (id uuidV4)
+                (tweet_ts timestamp) (tweet_text msg) (author id) */
                 let uuidv4 = Uuid::new_v4();
                 // (id uuidV4)
                 let timestamp = Utc::now().timestamp().to_string();
@@ -259,7 +262,8 @@ impl Document {
                                         conn.lrange(followed_id, 0, -1).await?;
                                     for follower in followers {
                                         let timeline_id = format!("USER_TIMELINE:{}", follower);
-                                        pipeline.zadd(timeline_id, content, timestamp.clone());
+                                        // Don't need to use sorted list as this is pushed in order
+                                        pipeline.lpush(timeline_id, content);
                                     }
                                 }
                                 batch_id += 2;

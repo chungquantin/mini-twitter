@@ -4,7 +4,7 @@ macro_rules! impl_global_transaction {
 			use crate::misc::{ Key, Arg };
 			use crate::structures::{FromPostgresRow, KeywordBucket, FromRedisValue};
 
-			#[async_trait::async_trait(?Send)]
+			#[async_trait::async_trait]
 			impl crate::structures::SimpleTransaction for Transaction {
 				// Check if closed
 				fn closed(&self) -> bool {
@@ -90,7 +90,7 @@ macro_rules! impl_global_transaction {
 				where
 								A: Into<Arg> + Send,
 								K: Into<Key> + Send,
-								V: FromPostgresRow + FromRedisValue
+								V: FromPostgresRow + FromRedisValue + Send
 				{
 					match self {
 						$(

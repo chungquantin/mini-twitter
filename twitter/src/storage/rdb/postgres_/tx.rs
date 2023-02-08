@@ -15,7 +15,7 @@ use super::ty::TxType;
 
 type PostgresArgType<'a> = &'a (dyn ToSql + Sync);
 
-#[async_trait(?Send)]
+#[async_trait]
 impl SimpleTransaction for DBTransaction<TxType> {
     fn closed(&self) -> bool {
         self.ok
